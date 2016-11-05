@@ -95,7 +95,7 @@ RET: 'r' ;
 HASH: '#' ;
 
 INTEGER: DIGIT+ ;
-
+WS: [ \n\t\r] -> skip ;
 
 
 
