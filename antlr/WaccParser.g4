@@ -4,17 +4,17 @@ options {
   tokenVocab=WaccLexer;
 }
 
-prog: BEGIN (func)* stat END ;
+prog: BEGIN (func)* stat END EOF ;
 
-func: type ident ORBRACKET (param_list)? CRBRACKET IS stat END ;
+func: type ident OPEN_PARENTHESES (param_list)? CLOSE_PARENTHESES IS stat END ;
 
 param_list: param (COMMA param)* ;
 
 param: type ident ;
 
 stat: SKIP
-| type ident ASS assign_rhs
-| assign_lhs ASS assign_rhs
+| type ident ASSIGN assign_rhs
+| assign_lhs ASSIGN assign_rhs
 | READ assign_lhs
 | FREE expr
 | RETURN expr
@@ -32,17 +32,17 @@ assign_lhs: ident
 
 assign_rhs: expr
 | array_liter
-| NEWPAIR ORBRACKET expr COMMA expr CRBRACKET
+| NEWPAIR OPEN_PARENTHESES expr COMMA expr CLOSE_PARENTHESES
 | pair_elem
-| CALL ident ORBRACKET (arg_list)? CRBRACKET ;
+| CALL ident OPEN_PARENTHESES (arg_list)? CLOSE_PARENTHESES ;
 
 arg_list: expr (COMMA expr)* ;
 
-pair_elem: FST expr
-| SND expr ;
+pair_elem: FIRST expr
+| SECOND expr ;
 
 type: base_type
-| type OSBRACKET CSBRACKET
+| type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET
 | pair_type ;
 
 base_type: INT
@@ -50,9 +50,10 @@ base_type: INT
 | CHAR
 | STRING ;
 
-array_type: type OSBRACKET CSBRACKET ;
+array_type: type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET ;
 
-pair_type: PAIR ORBRACKET pair_elem_type COMMA pair_elem_type CRBRACKET ;
+pair_type: PAIR OPEN_PARENTHESES pair_elem_type COMMA pair_elem_type
+           CLOSE_PARENTHESES ;
 
 pair_elem_type: base_type
 | array_type
@@ -67,41 +68,41 @@ expr: int_liter
 | array_elem
 | unary_oper expr
 | expr binary_oper expr
-| ORBRACKET expr CRBRACKET ;
+| OPEN_PARENTHESES expr CLOSE_PARENTHESES ;
 
 unary_oper: NOT
-| SUB
-| LEN
+| MINUS
+| LENGTH
 | ORD
 | CHR ;
 
-binary_oper: MUL
-| DIV
+binary_oper: MULTIPLY
+| DIVIDE
 | MOD
-| ADD
-| SUB
-| GT
-| LT
-| GTE
-| LTE
-| EQ
-| NEQ
+| PLUS
+| MINUS
+| GREATER_THAN
+| LESS_THAN
+| GREATER_THAN_OR_EQUAL
+| LESS_THAN_OR_EQUAL
+| EQUAL
+| NOT_EQUAL
 | AND
 | OR ;
 
-ident: IDENT ;
+ident: IDENTIFIER ;
 
-array_elem: ident (OSBRACKET expr CSBRACKET)+ ;
+array_elem: ident (OPEN_SQUARE_BRACKET expr CLOSE_SQUARE_BRACKET)+ ;
 
-int_liter: (ADD | SUB)? INTEGER ;
+int_liter: INTEGER ;
 
 bool_liter: TRUE | FALSE ;
 
-char_liter: CHAR_LITER ;
+char_liter: CHARACTER_LITERAL ;
 
-str_liter: STR_LITER ;
+str_liter: STRING_LITERAL ;
 
-array_liter: OSBRACKET (expr (COMMA expr)*)? CSBRACKET ;
+array_liter: OPEN_SQUARE_BRACKET (expr (COMMA expr)*)? CLOSE_SQUARE_BRACKET ;
 
 pair_liter: NULL;
 

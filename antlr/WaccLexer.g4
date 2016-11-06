@@ -24,25 +24,25 @@ END: 'end' ;
 
 //unary-operators
 NOT: '!' ;
-LEN: 'len' ;
+LENGTH: 'len' ;
 ORD: 'ord' ;
 CHR: 'chr' ;
 
 //assignment
-ASS: '=' ;
+ASSIGN: '=' ;
 
 //binary-operators
-MUL: '*' ;
-DIV: '/' ;
+MULTIPLY: '*' ;
+DIVIDE: '/' ;
 MOD: '%' ;
-ADD: '+' ;
-SUB: '-' ;
-GT: '>' ;
-LT: '<' ;
-GTE: '>=' ;
-LTE: '<=' ;
-EQ: '==' ;
-NEQ: '!=' ;
+PLUS: '+' ;
+MINUS: '-' ;
+GREATER_THAN: '>' ;
+LESS_THAN: '<' ;
+GREATER_THAN_OR_EQUAL: '>=' ;
+LESS_THAN_OR_EQUAL: '<=' ;
+EQUAL: '==' ;
+NOT_EQUAL: '!=' ;
 AND: '&&' ;
 OR: '||' ;
 
@@ -55,15 +55,15 @@ STRING: 'string' ;
 //pair
 PAIR: 'pair' ;
 NEWPAIR: 'newpair' ;
-FST: 'fst' ;
-SND: 'snd' ;
+FIRST: 'fst' ;
+SECOND: 'snd' ;
 NULL: 'null' ;
 
 //brackets
-ORBRACKET: '(' ;
-CRBRACKET: ')' ;
-OSBRACKET: '[' ;
-CSBRACKET: ']' ;
+OPEN_PARENTHESES: '(' ;
+CLOSE_PARENTHESES: ')' ;
+OPEN_SQUARE_BRACKET: '[' ;
+CLOSE_SQUARE_BRACKET: ']' ;
 
 //separators
 SEMI_COLON: ';' ;
@@ -73,19 +73,20 @@ COMMA: ',' ;
 TRUE: 'true' ;
 FALSE: 'false' ;
 
-//ident
-IDENT: [_a-zA-Z] [_a-zA-Z0-9]* ;
+//identifier
+IDENTIFIER: [_a-zA-Z] [_a-zA-Z0-9]* ;
 
 //comments
 COMMENT: '#' ~([\r\n])* [\r\n] -> skip ;
 
-WS: [ \n\t\r] -> skip ;
+//whitespace
+WHITESPACE: [ \n\t\r] -> skip ;
 
 //fragments for literals
 fragment SINGLE_QUOTE: '\'' ;
 fragment DOUBLE_QUOTE: '"' ;
 fragment BACKSLASH: '\\' ;
-fragment ESC_CHAR: '0'
+fragment ESCAPE_CHAR: '0'
 | 'b'
 | 't'
 | 'n'
@@ -94,9 +95,9 @@ fragment ESC_CHAR: '0'
 | SINGLE_QUOTE
 | DOUBLE_QUOTE
 | BACKSLASH ;
-fragment CHARACTER: ~('\\' | '\'' | '"') | BACKSLASH ESC_CHAR ;
+fragment CHARACTER: ~('\\' | '\'' | '"') | BACKSLASH ESCAPE_CHAR ;
 
 //literals
-INTEGER: [0-9]+ ;
-CHAR_LITER: SINGLE_QUOTE CHARACTER SINGLE_QUOTE ;
-STR_LITER: DOUBLE_QUOTE (CHARACTER)* DOUBLE_QUOTE ;
+INTEGER: (PLUS | MINUS)? [0-9]+ ;
+CHARACTER_LITERAL: SINGLE_QUOTE CHARACTER SINGLE_QUOTE ;
+STRING_LITERAL: DOUBLE_QUOTE (CHARACTER)* DOUBLE_QUOTE ;
