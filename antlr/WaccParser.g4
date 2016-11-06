@@ -43,7 +43,6 @@ pair_elem: FST expr
 
 type: base_type
 | type OSBRACKET CSBRACKET
-//| array_type
 | pair_type ;
 
 base_type: INT
@@ -123,4 +122,4 @@ array_liter: OSBRACKET (expr (COMMA expr)*)? CSBRACKET ;
 
 pair_liter: NULL ;
 
-comment: HASH (~(NL))* NL ;
+comment: COMMENT;

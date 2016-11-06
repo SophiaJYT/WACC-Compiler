@@ -92,7 +92,7 @@ NP: 'f' ;
 RET: 'r' ;
 
 //comments
-HASH: '#' ;
+COMMENT: '#' ~([\r\n])* [\r\n] -> skip ;
 
 INTEGER: DIGIT+ ;
 WS: [ \n\t\r] -> skip ;
