@@ -89,7 +89,7 @@ binary_oper: MUL
 | AND
 | OR ;
 
-ident: (UNDERSCORE | LC_LETTER | UC_LETTER) (UNDERSCORE | LC_LETTER | UC_LETTER | DIGIT)* ;
+ident: IDENT ;
 
 array_elem: ident (OSBRACKET expr CSBRACKET)+ ;
 

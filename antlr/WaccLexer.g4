@@ -78,9 +78,7 @@ DOUBLE_QUOTE: '"' ;
 
 //idents
 DIGIT: '0'..'9' ;
-LC_LETTER: 'a'..'z' ;
-UC_LETTER: 'A'..'Z' ;
-UNDERSCORE: '_' ;
+IDENT: [_a-zA-Z] [_a-zA-Z0-9]* ;
 
 //ascii
 BACKSLASH: '\\' ;
