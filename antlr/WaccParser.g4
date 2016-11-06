@@ -93,33 +93,16 @@ ident: IDENT ;
 
 array_elem: ident (OSBRACKET expr CSBRACKET)+ ;
 
-int_liter: (int_sign)? (DIGIT)+ ;
-
-digit: DIGIT ;
-
-int_sign: ADD | SUB ;
+int_liter: (ADD | SUB)? INTEGER ;
 
 bool_liter: TRUE | FALSE ;
 
-char_liter: SINGLE_QUOTE character SINGLE_QUOTE ;
+char_liter: CHAR_LITER ;
 
-str_liter: DOUBLE_QUOTE (character)* DOUBLE_QUOTE ;
-
-character: ~(BACKSLASH | SINGLE_QUOTE | DOUBLE_QUOTE)
-| BACKSLASH escaped_char ;
-
-escaped_char: NULL_CHAR
-| BS
-| TAB
-| NL
-| NP
-| RET
-| DOUBLE_QUOTE
-| SINGLE_QUOTE
-| BACKSLASH ;
+str_liter: STR_LITER ;
 
 array_liter: OSBRACKET (expr (COMMA expr)*)? CSBRACKET ;
 
-pair_liter: NULL ;
+pair_liter: NULL;
 
 comment: COMMENT;

@@ -29,8 +29,10 @@ LEN: 'len' ;
 ORD: 'ord' ;
 CHR: 'chr' ;
 
-//binary-operators
+//assignment
 ASS: '=' ;
+
+//binary-operators
 MUL: '*' ;
 DIV: '/' ;
 MOD: '%' ;
@@ -72,29 +74,30 @@ COMMA: ',' ;
 TRUE: 'true' ;
 FALSE: 'false' ;
 
-//quotes
-SINGLE_QUOTE: '\'' ;
-DOUBLE_QUOTE: '"' ;
-
-//idents
-DIGIT: '0'..'9' ;
+//ident
 IDENT: [_a-zA-Z] [_a-zA-Z0-9]* ;
-
-//ascii
-BACKSLASH: '\\' ;
-NULL_CHAR: '0' ;
-BS: 'b' ;
-TAB: 't' ;
-NL: 'n' ;
-NP: 'f' ;
-RET: 'r' ;
 
 //comments
 COMMENT: '#' ~([\r\n])* [\r\n] -> skip ;
 
-INTEGER: DIGIT+ ;
 WS: [ \n\t\r] -> skip ;
 
+//fragments for literals
+fragment SINGLE_QUOTE: '\'' ;
+fragment DOUBLE_QUOTE: '"' ;
+fragment BACKSLASH: '\\' ;
+fragment ESC_CHAR: '0'
+| 'b'
+| 't'
+| 'n'
+| 'f'
+| 'r'
+| SINGLE_QUOTE
+| DOUBLE_QUOTE
+| BACKSLASH ;
+fragment CHARACTER: ~('\\' | '\'' | '"') | BACKSLASH ESC_CHAR ;
 
-
-
+//literals
+INTEGER: [0-9]+ ;
+CHAR_LITER: SINGLE_QUOTE CHARACTER SINGLE_QUOTE ;
+STR_LITER: DOUBLE_QUOTE (CHARACTER)* DOUBLE_QUOTE ;
