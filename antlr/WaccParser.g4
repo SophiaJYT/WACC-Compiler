@@ -70,7 +70,7 @@ expr: int_liter
 | ORBRACKET expr CRBRACKET ;
 
 unary_oper: NOT
-| NEG
+| SUB
 | LEN
 | ORD
 | CHR ;
