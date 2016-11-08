@@ -12,38 +12,38 @@ param_list: param (COMMA param)* ;
 
 param: type ident ;
 
-stat: SKIP
-| type ident ASSIGN assign_rhs
-| assign_lhs ASSIGN assign_rhs
-| READ assign_lhs
-| FREE expr
-| RETURN expr
-| EXIT expr
-| PRINT expr
-| PRINTLN expr
-| IF expr THEN stat ELSE stat FI
-| WHILE expr DO stat DONE
-| BEGIN stat END
-| stat SEMI_COLON stat ;
+stat: SKIP                                                              #skip
+| type ident ASSIGN assign_rhs                                          #initialization
+| assign_lhs ASSIGN assign_rhs                                          #assignment
+| READ assign_lhs                                                       #read_lhs
+| FREE expr                                                             #freeExpr
+| RETURN expr                                                           #returnExpr
+| EXIT expr                                                             #exitExpr
+| PRINT expr                                                            #printExpr
+| PRINTLN expr                                                          #printlnExpr
+| IF expr THEN stat ELSE stat FI                                        #ifExpr
+| WHILE expr DO stat DONE                                               #whileExpr
+| BEGIN stat END                                                        #beginEnd
+| stat SEMI_COLON stat                                                  #semicolonStat;
 
-assign_lhs: ident
-| array_elem
-| pair_elem ;
+assign_lhs: ident                                                       #identLHSAssign
+| array_elem                                                            #arrayLHSElemAssign
+| pair_elem                                                             #pairLHSElemAssign;
 
-assign_rhs: expr
-| array_liter
-| NEWPAIR OPEN_PARENTHESES expr COMMA expr CLOSE_PARENTHESES
-| pair_elem
-| CALL ident OPEN_PARENTHESES (arg_list)? CLOSE_PARENTHESES ;
+assign_rhs: expr                                                        #exprRHSAssign
+| array_liter                                                           #arrayLitterRHSAssign
+| NEWPAIR OPEN_PARENTHESES expr COMMA expr CLOSE_PARENTHESES            #pairParantheses
+| pair_elem                                                             #pairElemRHSAssign
+| CALL ident OPEN_PARENTHESES (arg_list)? CLOSE_PARENTHESES             #callParantheses;
 
 arg_list: expr (COMMA expr)* ;
 
-pair_elem: FIRST expr
-| SECOND expr ;
+pair_elem: FIRST expr                                                   #pairFirstExpr
+| SECOND expr                                                           #secondFirstExpr;
 
-type: base_type
-| type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET
-| pair_type ;
+type: base_type                                                         #baseType
+| type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET                         #typeParantheses
+| pair_type                                                             #pairType;
 
 base_type: INT
 | BOOL
@@ -55,20 +55,20 @@ array_type: type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET ;
 pair_type: PAIR OPEN_PARENTHESES pair_elem_type COMMA pair_elem_type
            CLOSE_PARENTHESES ;
 
-pair_elem_type: base_type
-| array_type
+pair_elem_type: base_type                                               
+| array_type                                                            
 | PAIR ;
 
-expr: int_liter
-| bool_liter
-| char_liter
-| str_liter
-| pair_liter
-| ident
-| array_elem
-| unary_oper expr
-| expr binary_oper expr
-| OPEN_PARENTHESES expr CLOSE_PARENTHESES ;
+expr: int_liter                                                         #anInt
+| bool_liter                                                            #aBool
+| char_liter                                                            #aChar
+| str_liter                                                             #aString
+| pair_liter                                                            #aPair
+| ident                                                                 #anIdent
+| array_elem                                                            #anArrayElem
+| unary_oper expr                                                       #unOp
+| expr binary_oper expr                                                 #binOp
+| OPEN_PARENTHESES expr CLOSE_PARENTHESES                               #bracketExpr;
 
 unary_oper: NOT
 | MINUS
@@ -96,7 +96,8 @@ array_elem: ident (OPEN_SQUARE_BRACKET expr CLOSE_SQUARE_BRACKET)+ ;
 
 int_liter: INTEGER ;
 
-bool_liter: TRUE | FALSE ;
+bool_liter: TRUE
+| FALSE ;
 
 char_liter: CHARACTER_LITERAL ;
 
