@@ -3,4 +3,25 @@
 # You are free to change the language used for this script,
 # but do *not* change its name.
 
-puts "TODO: setup this script to call your WACC compiler"
+accepted_file_format = [".wacc"]
+
+if ARGV.length != 1
+  puts "Usage: ./compile <wacc-program>"
+  exit
+end
+
+filepath = ARGV[0]
+antlr_jar = "lib/antlr-4.4-complete.jar"
+program = "frontend.Main"
+
+if !File.file?(filepath)
+  puts "Could not find file #{filepath}"
+  exit
+end
+
+if !accepted_file_format.include? File.extname(filepath)
+  puts "File #{filepath} is not a WACC file"
+  exit
+end
+
+system "java -cp #{antlr_jar}:bin:. #{program} < #{filepath}"
