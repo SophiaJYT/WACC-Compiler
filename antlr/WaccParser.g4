@@ -26,24 +26,28 @@ stat: SKIP                                                              #skip
 | BEGIN stat END                                                        #beginEnd
 | stat SEMI_COLON stat                                                  #semicolonStat;
 
-assign_lhs: ident                                                       #identLHSAssign
-| array_elem                                                            #arrayLHSElemAssign
-| pair_elem                                                             #pairLHSElemAssign;
+assign_lhs: ident
+| array_elem
+| pair_elem ;
 
-assign_rhs: expr                                                        #exprRHSAssign
-| array_liter                                                           #arrayLitterRHSAssign
-| NEWPAIR OPEN_PARENTHESES expr COMMA expr CLOSE_PARENTHESES            #pairParantheses
-| pair_elem                                                             #pairElemRHSAssign
-| CALL ident OPEN_PARENTHESES (arg_list)? CLOSE_PARENTHESES             #callParantheses;
+assign_rhs: expr
+| array_liter
+| pairParantheses
+| pair_elem
+| callParantheses ;
+
+pairParantheses: NEWPAIR OPEN_PARENTHESES expr COMMA expr CLOSE_PARENTHESES ;
+
+callParantheses: CALL ident OPEN_PARENTHESES (arg_list)? CLOSE_PARENTHESES ;
 
 arg_list: expr (COMMA expr)* ;
 
 pair_elem: FIRST expr                                                   #pairFirstExpr
-| SECOND expr                                                           #secondFirstExpr;
+| SECOND expr                                                           #pairSecondExpr;
 
-type: base_type                                                         #baseType
-| type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET                         #typeParantheses
-| pair_type                                                             #pairType;
+type: base_type
+| type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET
+| pair_type ;
 
 base_type: INT
 | BOOL
@@ -59,16 +63,18 @@ pair_elem_type: base_type
 | array_type                                                            
 | PAIR ;
 
-expr: int_liter                                                         #anInt
-| bool_liter                                                            #aBool
-| char_liter                                                            #aChar
-| str_liter                                                             #aString
-| pair_liter                                                            #aPair
-| ident                                                                 #anIdent
-| array_elem                                                            #anArrayElem
-| unary_oper expr                                                       #unOp
-| expr binary_oper expr                                                 #binOp
-| OPEN_PARENTHESES expr CLOSE_PARENTHESES                               #bracketExpr;
+expr: int_liter
+| bool_liter
+| char_liter
+| str_liter
+| pair_liter
+| ident
+| array_elem
+| unary_oper expr
+| expr binary_oper expr
+| bracketExpr ;
+
+bracketExpr: OPEN_PARENTHESES expr CLOSE_PARENTHESES ;
 
 unary_oper: NOT
 | MINUS
