@@ -130,7 +130,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         //     error "Int value is too large";
         // }
         // return Type.Int;
-        long size = Integer.parseInt(ctx.getText());
+        long size = Long.parseLong(ctx.getText());
         if (size < Integer.MIN_VALUE || size > Integer.MAX_VALUE) {
             error("Integer value is too large");
         }
