@@ -12,7 +12,7 @@ end
 
 filepath = ARGV[0]
 antlr_jar = "lib/antlr-4.4-complete.jar"
-program = "frontend.Main"
+program = "frontEnd.Main"
 
 if !File.file?(filepath)
   puts "Could not find file #{filepath}"
@@ -24,4 +24,4 @@ if !accepted_file_format.include? File.extname(filepath)
   exit
 end
 
-system "java -cp #{antlr_jar}:bin:. #{program} < #{filepath}"
+exec "java -cp #{antlr_jar}:bin:. #{program} < #{filepath}"

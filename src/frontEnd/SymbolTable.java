@@ -5,10 +5,15 @@ import java.util.Hashtable;
 
 public class SymbolTable<T> {
 
-    SymbolTable encSymbolTable;
+    SymbolTable<T> encSymbolTable;
     Dictionary<String, T> dictionary;
 
-    public SymbolTable(SymbolTable st) {
+    public SymbolTable() {
+        encSymbolTable = null;
+        dictionary = new Hashtable<>();
+    }
+
+    public SymbolTable(SymbolTable<T> st) {
         encSymbolTable = st;
         dictionary = new Hashtable<>();
     }
