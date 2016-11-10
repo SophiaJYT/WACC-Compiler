@@ -42,8 +42,8 @@ callParantheses: CALL ident OPEN_PARENTHESES (arg_list)? CLOSE_PARENTHESES ;
 
 arg_list: expr (COMMA expr)* ;
 
-pair_elem: FIRST expr                                                   #pairFirstExpr
-| SECOND expr                                                           #pairSecondExpr;
+pair_elem: FIRST expr
+| SECOND expr ;
 
 type: base_type
 | type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET
@@ -59,8 +59,8 @@ array_type: type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET ;
 pair_type: PAIR OPEN_PARENTHESES pair_elem_type COMMA pair_elem_type
            CLOSE_PARENTHESES ;
 
-pair_elem_type: base_type                                               
-| array_type                                                            
+pair_elem_type: base_type
+| array_type
 | PAIR ;
 
 expr: int_liter

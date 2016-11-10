@@ -1,16 +1,19 @@
 package frontEnd;
 
+import antlr.WaccParser;
 import antlr.WaccParser.*;
 import antlr.WaccParserBaseVisitor;
 import org.antlr.v4.runtime.misc.NotNull;
+import org.antlr.v4.runtime.tree.RuleNode;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class
-WaccVisitor extends WaccParserBaseVisitor<Type> {
+public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     private final int SYNTAX_ERROR_CODE = 100, SEMANTIC_ERROR_CODE = 200;
+    private final int ASCII_MAX_VALUE = 127;
     private SymbolTable<Type> st;
 
     private void error(String msg) {
@@ -20,9 +23,6 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitExitExpr(@NotNull ExitExprContext ctx) {
-        // if (!(ctx.expr() instanceof Type.INT)) {
-        //     error "Semantic Error: Cannot exit with non-int value";
-        // }
         if (!visitExpr(ctx.expr()).equalsType(AllTypes.INT)) {
             error("Cannot exit with non-int value");
         }
@@ -31,10 +31,6 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitRead_lhs(@NotNull Read_lhsContext ctx) {
-        // type = lookup(ctx.assign_lhs().ident());
-        // if (!(type instanceof Type.INT || type instanceof Type.CHAR)) {
-        //     error "Variable must be of type int or char";
-        // }
         String var = ctx.assign_lhs().getText();
         Type type = st.lookUp(var);
         if (type == null) {
@@ -48,13 +44,6 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitArray_elem(@NotNull Array_elemContext ctx) {
-        // type = lookup(ctx.ident());
-        // if (type == null) {
-        //     error "Variable doesn't exist";
-        // }
-        // if (!(ctx.expr() instanceof Type.INT)) {
-        //     error "Must use an integer to access array element"
-        // }
         Type type = st.lookUp(ctx.getText());
         if (type == null) {
             error("Array element doesn't exist");
@@ -69,44 +58,47 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitAssign_lhs(@NotNull Assign_lhsContext ctx) {
-        // type = lookup(ctx.ident());
-        // if (type == null) {
-        //     error "Variable doesn't exist";
-        // }
         Type type = st.lookUp(ctx.getText());
         if (type == null) {
             error("Variable doesn't exist");
         }
-        return null;
+        return type;
     }
 
     @Override
     public Type visitIdent(@NotNull IdentContext ctx) {
-        // Skip
-        return null;
+        return st.lookUp(ctx.getText());
     }
 
     @Override
     public Type visitAssign_rhs(@NotNull Assign_rhsContext ctx) {
-        // Need to think about
+        // if (ctx is expression) {
+        //      return visitExpr(expression);
+        // }
+        // if (ctx is array_liter) {
+        //      ArrayLiterContext liter = (ArrayLiterContext) ctx;
+        //      if (!liter.expr().isEmpty()) {
+        //          return new ArrayType(visitExpr(liter.expr().getChild(0));
+        //      }
+        //      return null;
+        // if (ctx is pair) {
+        //      PairParantheses pair = (PairParantheses) ctx;
+        //      return visitPairParantheses(pair);
+        // if (ctx is pair_elem) {
+        //      Pair_elemtype pt = (Pair_elemtype) ctx;
+        //      return visitPair_elemType(pt);
+
         return null;
     }
 
     @Override
     public Type visitFreeExpr(@NotNull FreeExprContext ctx) {
-        // type = lookup(ctx.expr().ident())
-        // if (type == null) {
-        //     error "Variable doesn't exist";
-        // }
-        // if (!(type instanceof Type.Pair || type instanceof Type.Array)) {
-        //     error "Variable must be a reference to an array or pair";
-        // }
         String var = ctx.expr().getText();
         Type type = st.lookUp(var);
         if (type == null) {
             error("Variable " + var + " has not been declared");
         }
-        if (!(type.equalsType(AllTypes.PAIR) || type.equalsType(AllTypes.ARRAY))) {
+        if (!(type instanceof ArrayType || type instanceof PairType)) {
             error("Variable must be a reference to an array or pair");
         }
         return null;
@@ -115,86 +107,90 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitSkip(@NotNull SkipContext ctx) {
         // Skip cannot be invalid semantically
-        return null;
+        return visitChildren(ctx);
     }
 
     @Override
     public Type visitType(@NotNull TypeContext ctx) {
-        // Nothing to check? (Maybe, Hopefully)
-        return null;
+        return visitChildren(ctx);
     }
 
     @Override
     public Type visitInt_liter(@NotNull Int_literContext ctx) {
-        // int size = getIntLiteral(ctx);
-        // if (size < Integer.MIN_VALUE || size > Integer.MAX_VALUE) {
-        //     error "Int value is too large";
-        // }
-        // return Type.Int;
         long size = Long.parseLong(ctx.getText());
         if (size < Integer.MIN_VALUE || size > Integer.MAX_VALUE) {
-            error("Integer value is too large");
+            error("Integer value must be between -2^31 and 2^31 - 1");
         }
         return AllTypes.INT;
     }
 
     @Override
     public Type visitBase_type(@NotNull Base_typeContext ctx) {
-        // Nothing to check? (Maybe, Hopefully)
+        switch (ctx.getText()) {
+            case "int":
+                return AllTypes.INT;
+            case "bool":
+                return AllTypes.BOOLEAN;
+            case "char":
+                return AllTypes.CHAR;
+            case "string":
+                return AllTypes.STRING;
+        }
         return null;
     }
 
     @Override
     public Type visitParam(@NotNull ParamContext ctx) {
-        // type = lookup(ctx.ident());
-        // if (type != null) {
-        //     error "Variable already in use";
-        // }
-        // symbolTable.put(ctx.ident(), ctx.type());
-        return null;
+        String var = ctx.ident().getText();
+        Type type = st.lookUp(var);
+        if (type != null) {
+            error("Variable " + var + " is already in use");
+        }
+        st.add(var, type);
+        return visitChildren(ctx);
     }
 
     @Override
     public Type visitPair_type(@NotNull Pair_typeContext ctx) {
-        visitChildren(ctx);
-        return null;
+        return new PairType(visitPair_elem_type(ctx.pair_elem_type(0)),
+                visitPair_elem_type(ctx.pair_elem_type(1)));
     }
 
     @Override
     public Type visitChar_liter(@NotNull Char_literContext ctx) {
-        // Nothing to check? (Maybe, Hopefully)
-        // return Type.Char;
+        int c = ctx.getText().charAt(0);
+        if (c > ASCII_MAX_VALUE) {
+            error("Only ASCII printable characters allowed");
+        }
         return AllTypes.CHAR;
     }
 
     @Override
     public Type visitInitialization(@NotNull InitializationContext ctx) {
-        // type = lookup(ctx.ident());
-        // if (type != null) {
-        //     error "Variable already in use";
-        // }
-        // symbolTable.put(ctx.ident(), ctx.type());
-        // visitAssign_rhs(ctx.assign_rhs());
-        return null;
+        String var = ctx.ident().getText();
+        Type type = visitIdent(ctx.ident());
+        if (type != null) {
+            error("Variable " + var + " is already in use");
+        }
+        type = visitType(ctx.type());
+        st.add(var, type);
+        Type rhs = visitAssign_rhs(ctx.assign_rhs());
+        if (!type.equalsType(rhs)) {
+            error("Type " + type + " does not match type" + rhs);
+        }
+        return visitChildren(ctx);
     }
 
     @Override
     public Type visitIfExpr(@NotNull IfExprContext ctx) {
-        // if (evalType(ctx.expr()) != Type.Bool) {
-        //     error "Expression must evaluate to a bool value";
-        // }
-        // visitChildren(ctx);
         if (visitExpr(ctx.expr()) != AllTypes.BOOLEAN) {
             error("If condition must evaluate to a bool value");
         }
-        visitChildren(ctx);
-        return null;
+        return visitChildren(ctx);
     }
 
     @Override
     public Type visitBinary_oper(@NotNull Binary_operContext ctx) {
-        // We need to check the expression types on both sides of the binary expression.
-        // Also check that binary operator is valid for those types.
         List<Type> argTypes = new ArrayList<>();
         Type retT = null;
         switch (ctx.getText()) {
@@ -252,30 +248,57 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
     }
 
     @Override
-    public Type visitCallParantheses(@NotNull CallParanthesesContext ctx) {
-        return null;
-    }
-
-    @Override
-    public Type visitArray_type(@NotNull Array_typeContext ctx) {
-        // Nothing to check? (Maybe, Hopefully)
-        return null;
-    }
-
-    @Override
-    public Type visitPrintExpr(@NotNull PrintExprContext ctx) {
+    public Type visitPair_elem(@NotNull Pair_elemContext ctx) {
+        String var = ctx.expr().getText();
+        Type type = st.lookUp(var);
+        if (type == null) {
+            error("Expression " + var + " is either ");
+        }
+        //if (ctx.expr())
         return visitExpr(ctx.expr());
     }
 
     @Override
+    public Type visitCallParantheses(@NotNull CallParanthesesContext ctx) {
+        // Need to check lengths of parameter lists of call function and function declaration
+        String funName = ctx.ident().getText();
+        Type type = st.lookUp(funName);
+        if (type == null) {
+            error("Function " + funName + " doesn't exist");
+        }
+        Type[] paramList = st.lookUpParam(funName);
+        int i = 0;
+        if(paramList.length != ctx.arg_list().expr().size()) {
+            error("Invalid number of arguments");
+        }
+        for (ExprContext e : ctx.arg_list().expr()) {
+            Type callType = visitExpr(e);
+            if(callType != paramList[i]) {
+                error("Types don't match");
+            } else {
+                i++;
+            }
+        }
+        return type;
+    }
+
+    @Override
+    public Type visitArray_type(@NotNull Array_typeContext ctx) {
+        return new ArrayType(visitType(ctx.type()));
+    }
+
+    @Override
+    public Type visitPrintExpr(@NotNull PrintExprContext ctx) {
+        return visitChildren(ctx);
+    }
+
+    @Override
     public Type visitBool_liter(@NotNull Bool_literContext ctx) {
-        // return Type.Bool;
         return AllTypes.BOOLEAN;
     }
 
     @Override
     public Type visitUnary_oper(@NotNull Unary_operContext ctx) {
-        // Need to check type of unary operator matches expression type.
         Type argT = null, retT = null;
         switch (ctx.getText()) {
             case "!":
@@ -287,7 +310,7 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
                 retT = AllTypes.INT;
                 break;
             case "len":
-                argT = AllTypes.ARRAY;
+                argT = new ArrayType(null);
                 retT = AllTypes.INT;
                 break;
             case "ord":
@@ -309,9 +332,7 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairParantheses(@NotNull PairParanthesesContext ctx) {
-        // return Type.Pair;
-        visitChildren(ctx);
-        return AllTypes.PAIR;
+        return new PairType(visitExpr(ctx.expr(0)), visitExpr(ctx.expr(1)));
     }
 
     @Override
@@ -329,25 +350,18 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitBracketExpr(@NotNull BracketExprContext ctx) {
-        return visitChildren(ctx);
+        return visitExpr(ctx.expr());
     }
 
     @Override
     public Type visitArray_liter(@NotNull Array_literContext ctx) {
-        // type t = visitExpr(ctx.getChild(0));
-        // for (ExprContext c : ctx.expr()) {
-        //     if (t != visitExpr(c)) {
-        //         error "Values should all be of the same type";
-        //     }
-        // }
-        // return Type.Array;
         Type t = visitExpr(ctx.expr().get(0));
         for (ExprContext e : ctx.expr()) {
             if (t != visitExpr(e)) {
                 error("Array values must all be of the same type");
             }
         }
-        return AllTypes.ARRAY;
+        return new ArrayType(t);
     }
 
     @Override
@@ -355,7 +369,7 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
         // Check that statement is inside a function, by looking at the first element
         // of the symbol tables from the current table up to the global table and checking
         // that we have at least one first element different from 'begin'
-        return visitExpr(ctx.expr());
+        return visitChildren(ctx);
     }
 
     @Override
@@ -394,19 +408,28 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
     }
 
     @Override
-    public Type visitPairSecondExpr(@NotNull PairSecondExprContext ctx) {
-        visitChildren(ctx);
-        return null;
-    }
-
-    @Override
     public Type visitFunc(@NotNull FuncContext ctx) {
-        // If no return statement in function, print a SYNTAX ERROR.
-        // Need to check types of return expression and type in func declaration
-        // Function identifier name must be unique (check with symbol table)
-        // Initialise a new symbol table containing parameter variables and types
-        visitChildren(ctx);
-        return null;
+        Type[] paramList = new Type[ctx.param_list().param().size()];
+        int i = 0;
+        for (ParamContext param : ctx.param_list().param()) {
+            paramList[i] = visitParam(param);
+            i++;
+        }
+        String funName = ctx.ident().getText();
+        Type funType = visitType(ctx.type());
+        st.addFunction(funName, funType, paramList);
+        StatContext stat = ctx.stat();
+        while (stat.children.get(1).getText().equals(";")) {
+            stat = (StatContext) stat.children.get(stat.children.size() - 1);
+        }
+        if (!stat.children.get(0).getText().equals("return")) {
+            error("Function does not have a return statement");
+        }
+        ReturnExprContext returnStat = (ReturnExprContext) stat;
+        if (!visitExpr(returnStat.expr()).equalsType(funType)) {
+            error("Return type of '" + returnStat.expr().getText() + "' must match the function return type");
+        }
+        return visitChildren(ctx);
     }
 
     @Override
@@ -429,16 +452,8 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
         return visitChildren(ctx);
     }
 
-
-    @Override
-    public Type visitPairFirstExpr(@NotNull PairFirstExprContext ctx) {
-        visitChildren(ctx);
-        return null;
-    }
-
     @Override
     public Type visitStr_liter(@NotNull Str_literContext ctx) {
-        // return Type.String
         return AllTypes.STRING;
     }
 
@@ -453,10 +468,11 @@ WaccVisitor extends WaccParserBaseVisitor<Type> {
 //        return null;
 //    }
 //
-//    @Override
-//    public Type visitChildren(@NotNull RuleNode ruleNode) {
-//        return null;
-//    }
+    @Override
+    public Type visitChildren(@NotNull RuleNode ruleNode) {
+        for (ruleNode)
+        return null;
+    }
 //
 //    @Override
 //    public Type visitTerminal(@NotNull TerminalNode terminalNode) {
