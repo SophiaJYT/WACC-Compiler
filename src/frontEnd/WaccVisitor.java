@@ -7,7 +7,8 @@ import org.antlr.v4.runtime.misc.NotNull;
 import java.util.ArrayList;
 import java.util.List;
 
-public class WaccVisitor extends WaccParserBaseVisitor<Type> {
+public class
+WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     private final int SYNTAX_ERROR_CODE = 100, SEMANTIC_ERROR_CODE = 200;
     private SymbolTable<Type> st;
