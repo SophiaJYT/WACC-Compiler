@@ -87,17 +87,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         System.out.println("==Visiting Assign_rhs==");
         System.out.println(ctx.getText());
         return visitChildren(ctx);
-//        System.out.println("==Visiting assign_rhs==");
-//        Type type;
-//        if (ctx.pair_elem() != null) {
-//            type = visitPair_elem(ctx.pair_elem());
-//        } else {
-//            type = st.lookupAll(ctx.getText());
-//            if (type == null) {
-//                error("Variable doesn't exist");
-//            }
-//        }
-//        return type;
     }
 
     @Override
@@ -127,6 +116,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     public Type visitType(@NotNull TypeContext ctx) {
         System.out.println("==Visiting type==");
         System.out.println(ctx.getText());
+        if (ctx.type() != null) {
+            return visitType(ctx.type());
+        }
         return visitChildren(ctx);
     }
 
@@ -200,6 +192,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             error("Variable " + var + " is already in use");
         }
         type = visitType(ctx.type());
+        System.out.println(type + "   Type lhs initialization");
         st.add(var, type);
         Type rhs = visitAssign_rhs(ctx.assign_rhs());
         if (!type.equalsType(rhs)) {
@@ -432,7 +425,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                 error("Array values must all be of the same type");
             }
         }
-        return new ArrayType(t);
+        return t;
     }
 
     @Override
@@ -518,6 +511,11 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         } else {
             paramList = new Type[0];
         }
+
+        for (int i = 0; i <paramList.length; i++) {
+            System.out.println(varNames[i] + "  " + paramList[i] + "  st contents");
+        }
+
         st.addFunction(funName, funType, paramList);
 
         SymbolTable<Type> old = st;
@@ -526,6 +524,10 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         if(varNames != null) {
             for (int i = 0; i < paramList.length; i++) {
                 st.add(varNames[i], paramList[i]);
+            }
+
+            for (int i = 0; i <paramList.length; i++) {
+                System.out.println(varNames[i] + "  " + paramList[i] + "  st contents");
             }
         }
 
