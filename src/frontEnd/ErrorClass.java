@@ -2,9 +2,6 @@ package frontEnd;
 
 
 import org.antlr.v4.runtime.ParserRuleContext;
-/**
- * Created by ab6015 on 10/11/16.
- */
 
 public class ErrorClass {
 

@@ -6,7 +6,6 @@ import org.antlr.v4.runtime.misc.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 
 public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
@@ -192,9 +191,12 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             error("Variable " + var + " is already in use");
         }
         type = visitType(ctx.type());
-        System.out.println(type + "   Type lhs initialization");
+//        System.out.println(type + "   Type lhs initialization");
         st.add(var, type);
         Type rhs = visitAssign_rhs(ctx.assign_rhs());
+        if (rhs == AllTypes.ANY) {
+            return type;
+        }
         if (!type.equalsType(rhs)) {
             error("Type " + type + " does not match type " + rhs);
         }
@@ -415,10 +417,11 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     public Type visitArray_liter(@NotNull Array_literContext ctx) {
         System.out.println("==Visiting array_liter==");
         System.out.println(ctx.getText());
-        ExprContext exp = ctx.expr().get(0);
-        if (exp == null) {
+        int expSize = ctx.expr().size();
+        if (expSize == 0) {
             return new ArrayType(AllTypes.ANY);
         }
+        ExprContext exp = ctx.expr().get(0);
         Type t = visitExpr(exp);
         for (ExprContext e : ctx.expr()) {
             if (t != visitExpr(e)) {

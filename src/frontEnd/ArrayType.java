@@ -1,8 +1,5 @@
 package frontEnd;
 
-/**
- * Created by ab6015 on 09/11/16.
- */
 public class ArrayType implements Type{
 
     private Type element;

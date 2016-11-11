@@ -1,8 +1,5 @@
 package frontEnd;
 
-/**
- * Created by da2215 on 08/11/16.
- */
 public enum AllTypes implements Type {
     INT, BOOL, CHAR, STRING, NULL, ANY;
 
@@ -19,6 +16,8 @@ public enum AllTypes implements Type {
                 return "string";
             case NULL:
                 return "null";
+            case ANY:
+                return "";
             default:
                 throw new IllegalArgumentException();
         }
