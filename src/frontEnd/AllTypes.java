@@ -4,7 +4,7 @@ package frontEnd;
  * Created by da2215 on 08/11/16.
  */
 public enum AllTypes implements Type {
-    INT, BOOL, CHAR, STRING, ANY;
+    INT, BOOL, CHAR, STRING, NULL, ANY;
 
     @Override
     public String toString() throws IllegalArgumentException {
@@ -17,6 +17,8 @@ public enum AllTypes implements Type {
                 return "char";
             case STRING:
                 return "string";
+            case NULL:
+                return "null";
             default:
                 throw new IllegalArgumentException();
         }
@@ -27,6 +29,6 @@ public enum AllTypes implements Type {
         if (that instanceof AllTypes) {
             return this == that || this == ANY || that == ANY;
         }
-        return this == ANY;
+        return this == ANY || this == NULL && (that instanceof ArrayType || that instanceof PairType);
     }
 }

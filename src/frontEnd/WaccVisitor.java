@@ -62,10 +62,14 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitAssign_lhs(@NotNull Assign_lhsContext ctx) {
         System.out.println("==Visiting assign_lhs==");
-        System.out.println(ctx.getText());
-        Type type = st.lookUp(ctx.getText());
-        if (type == null) {
-            error("Variable doesn't exist");
+        Type type;
+        if (ctx.pair_elem() != null) {
+            type = visitPair_elem(ctx.pair_elem());
+        } else {
+            type = st.lookupAll(ctx.getText());
+            if (type == null) {
+                error("Variable doesn't exist");
+            }
         }
         return type;
     }
@@ -272,10 +276,13 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         String var = ctx.expr().getText();
         Type type = st.lookUp(var);
         if (type == null) {
-            error("Expression " + var + " is either ");
+            error("Variable doesn't exist");
         }
+        PairType t = (PairType) type;
+        type = (ctx.FIRST() != null) ? t.getLeft() : t.getRight();
+        System.out.println(type);
         //if (ctx.expr())
-        return visitExpr(ctx.expr());
+        return type;
     }
 
     @Override
@@ -425,6 +432,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     public Type visitPair_elem_type(@NotNull Pair_elem_typeContext ctx) {
         System.out.println("==Visiting pair_elem_type==");
         System.out.println(ctx.getText());
+        if (ctx.PAIR() != null) {
+            return new PairType(AllTypes.NULL, AllTypes.NULL);
+        }
         return visitChildren(ctx);
     }
 
@@ -449,7 +459,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         System.out.println("==Visiting pair_liter==");
         System.out.println(ctx.getText());
         // Need to return a null type
-        return null;
+        return AllTypes.NULL;
     }
 
     @Override
@@ -486,7 +496,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                 paramList[i] = visitParam(param);
                 varNames[i] = param.ident().getText();
                 i++;
-                System.out.println(i);
             }
         } else {
             paramList = new Type[0];

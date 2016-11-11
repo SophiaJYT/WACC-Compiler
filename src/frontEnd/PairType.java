@@ -32,6 +32,7 @@ public class PairType implements Type {
             PairType thatPair=(PairType) that;
             return ((this.getLeft().equalsType(thatPair.getLeft())) && this
                     .getRight().equalsType(thatPair.getRight()));
-        } else return false;
+        }
+        return that == AllTypes.NULL;
     }
 }

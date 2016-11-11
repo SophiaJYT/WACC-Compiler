@@ -25,6 +25,7 @@ public class ArrayType implements Type{
         if (that instanceof ArrayType) {
             ArrayType thatArray = (ArrayType) that;
             return this.getElement().equalsType(thatArray.getElement());
-        } else return false;
+        }
+        return that == AllTypes.NULL;
     }
 }
