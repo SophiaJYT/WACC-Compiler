@@ -26,13 +26,25 @@ public class PairType implements Type {
         return "( " + getLeft().toString() + " , " + getRight().toString() + " )";
     }
 
+    private boolean checkTypeIsPair(Type t) {
+        return t instanceof PairType || t == AllTypes.NULL || t == AllTypes.ANY;
+    }
+
     @Override
     public boolean equalsType(Type that){
+//        if (that instanceof PairType) {
+//            PairType thatPair=(PairType) that;
+//            return ((this.getLeft().equalsType(thatPair.getLeft())) && this
+//                    .getRight().equalsType(thatPair.getRight()));
+//        }
         if (that instanceof PairType) {
-            PairType thatPair=(PairType) that;
-            return ((this.getLeft().equalsType(thatPair.getLeft())) && this
-                    .getRight().equalsType(thatPair.getRight()));
+            Type t1 = ((PairType) that).getLeft(), t2 = ((PairType) that).getRight();
+            boolean result = true;
+            result = (t1 instanceof PairType) ? checkTypeIsPair(lhs) : t1.equalsType(lhs);
+            result = (t2 instanceof PairType) ? result && checkTypeIsPair(rhs)
+                    : result && t2.equalsType(rhs);
+            return result;
         }
-        return that == AllTypes.NULL;
+        return that == AllTypes.NULL || that == AllTypes.ANY;
     }
 }

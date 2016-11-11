@@ -280,7 +280,8 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         }
         PairType t = (PairType) type;
         type = (ctx.FIRST() != null) ? t.getLeft() : t.getRight();
-        System.out.println(type);
+        System.out.println(t);
+        System.out.println("returning"+type);
         //if (ctx.expr())
         return type;
     }
@@ -433,7 +434,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         System.out.println("==Visiting pair_elem_type==");
         System.out.println(ctx.getText());
         if (ctx.PAIR() != null) {
-            return new PairType(AllTypes.NULL, AllTypes.NULL);
+            return AllTypes.NULL;
         }
         return visitChildren(ctx);
     }
