@@ -11,20 +11,24 @@ public class SymbolTable<T> {
     Dictionary<String, T[]> funcParams;
     Dictionary<String, SymbolTable<T>> funcTables;
 
-    public SymbolTable() {
-        encSymbolTable = null;
+    private void initialiseDictionaries() {
         dictionary = new Hashtable<>();
         funcTables = new Hashtable<>();
+        funcParams = new Hashtable<>();
+    }
+
+    public SymbolTable() {
+        encSymbolTable = null;
+        initialiseDictionaries();
     }
 
     public SymbolTable(SymbolTable<T> st) {
         encSymbolTable = st;
-        dictionary = new Hashtable<>();
-        funcTables = new Hashtable<>();
+        initialiseDictionaries();
     }
 
     public void addFunction(String name, T retType, T[] paramList) {
-        add(name, retType);
+        add("func:" + name, retType);
         funcTables.put(name, new SymbolTable<>());
         funcParams.put(name, paramList);
     }
@@ -57,4 +61,8 @@ public class SymbolTable<T> {
         return null;
     }
 
+    @Override
+    public String toString() {
+        return dictionary + "[" + encSymbolTable + "]";
+    }
 }
