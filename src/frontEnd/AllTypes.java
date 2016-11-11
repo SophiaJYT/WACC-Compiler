@@ -25,7 +25,7 @@ public enum AllTypes implements Type {
     @Override
     public boolean equalsType(Type that) {
         if (that instanceof AllTypes) {
-                return this == that || that == ANY;
+            return this == that || this == ANY || that == ANY;
         }
         return this == ANY;
     }

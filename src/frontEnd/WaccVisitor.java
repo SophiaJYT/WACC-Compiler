@@ -20,6 +20,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitExitExpr(@NotNull ExitExprContext ctx) {
+        System.out.println("==Visiting exit==");
         System.out.println(ctx.getText());
         if (!visitExpr(ctx.expr()).equalsType(AllTypes.INT)) {
             error("Cannot exit with non-int value");
@@ -29,6 +30,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitRead_lhs(@NotNull Read_lhsContext ctx) {
+        System.out.println("==Visiting read==");
         System.out.println(ctx.getText());
         String var = ctx.assign_lhs().getText();
         Type type = st.lookUp(var);
@@ -43,6 +45,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitArray_elem(@NotNull Array_elemContext ctx) {
+        System.out.println("==Visiting array_elem==");
         System.out.println(ctx.getText());
         Type type = st.lookUp(ctx.getText());
         if (type == null) {
@@ -58,6 +61,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitAssign_lhs(@NotNull Assign_lhsContext ctx) {
+        System.out.println("==Visiting assign_lhs==");
         System.out.println(ctx.getText());
         Type type = st.lookUp(ctx.getText());
         if (type == null) {
@@ -68,18 +72,21 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitIdent(@NotNull IdentContext ctx) {
+        System.out.println("==Visiting ident==");
         System.out.println(ctx.getText());
         return st.lookUp(ctx.getText());
     }
 
     @Override
     public Type visitAssign_rhs(@NotNull Assign_rhsContext ctx) {
+        System.out.println("==Visiting assign_rhs==");
         System.out.println(ctx.getText());
         return visitChildren(ctx);
     }
 
     @Override
     public Type visitFreeExpr(@NotNull FreeExprContext ctx) {
+        System.out.println("==Visiting free==");
         System.out.println(ctx.getText());
         String var = ctx.expr().getText();
         Type type = st.lookUp(var);
@@ -94,6 +101,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitSkip(@NotNull SkipContext ctx) {
+        System.out.println("==Visiting skip==");
         System.out.println(ctx.getText());
         // Skip cannot be invalid semantically
         return visitChildren(ctx);
@@ -101,12 +109,14 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitType(@NotNull TypeContext ctx) {
+        System.out.println("==Visiting type==");
         System.out.println(ctx.getText());
         return visitChildren(ctx);
     }
 
     @Override
     public Type visitInt_liter(@NotNull Int_literContext ctx) {
+        System.out.println("==Visiting int_liter==");
         System.out.println(ctx.getText());
         long size = Long.parseLong(ctx.getText());
         if (size < Integer.MIN_VALUE || size > Integer.MAX_VALUE) {
@@ -117,6 +127,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitBase_type(@NotNull Base_typeContext ctx) {
+        System.out.println("==Visiting base_type==");
         System.out.println(ctx.getText());
         switch (ctx.getText()) {
             case "int":
@@ -134,20 +145,19 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitParam(@NotNull ParamContext ctx) {
+        System.out.println("==Visiting param==");
         System.out.println(ctx.getText());
         String var = ctx.ident().getText();
         Type type = st.lookUp(var);
         if (type != null) {
             error("Variable " + var + " is already in use");
         }
-        type = visitType(ctx.type());
-        st.add(var, type);
-        System.out.println(st);
-        return visitChildren(ctx);
+        return visitType(ctx.type());
     }
 
     @Override
     public Type visitPair_type(@NotNull Pair_typeContext ctx) {
+        System.out.println("==Visiting pair_type==");
         System.out.println(ctx.getText());
         return new PairType(visitPair_elem_type(ctx.pair_elem_type(0)),
                 visitPair_elem_type(ctx.pair_elem_type(1)));
@@ -155,6 +165,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitChar_liter(@NotNull Char_literContext ctx) {
+        System.out.println("==Visiting char_liter==");
         System.out.println(ctx.getText());
         int c = ctx.getText().charAt(0);
         if (c > ASCII_MAX_VALUE) {
@@ -165,6 +176,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitInitialization(@NotNull InitializationContext ctx) {
+        System.out.println("==Visiting initialization==");
         System.out.println(ctx.getText());
         String var = ctx.ident().getText();
         Type type = visitIdent(ctx.ident());
@@ -182,6 +194,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitIfExpr(@NotNull IfExprContext ctx) {
+        System.out.println("==Visiting if==");
         System.out.println(ctx.getText());
         if (visitExpr(ctx.expr()) != AllTypes.BOOL) {
             error("If condition must evaluate to a bool value");
@@ -191,6 +204,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitBinary_oper(@NotNull Binary_operContext ctx) {
+        System.out.println("==Visiting bin_oper==");
         System.out.println(ctx.getText());
         List<Type> argTypes = new ArrayList<>();
         Type retT = null;
@@ -218,6 +232,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                 break;
             case "==":
             case "!=":
+                argTypes.add(AllTypes.ANY);
                 retT = AllTypes.BOOL;
                 break;
         }
@@ -226,9 +241,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         Type t2 = visitExpr(e.expr(1));
         if (!t1.equalsType(t2)) {
             error("Types of both expression must be the same");
-        }
-        if (argTypes.isEmpty()) {
-            return retT;
         }
         boolean typeMatch = false;
         for (Type t : argTypes) {
@@ -245,12 +257,17 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitExpr(@NotNull ExprContext ctx) {
+        System.out.println("==Visiting expr==");
         System.out.println(ctx.getText());
+        if (ctx.binary_oper() != null) {
+            return visitBinary_oper(ctx.binary_oper());
+        }
         return visitChildren(ctx);
     }
 
     @Override
     public Type visitPair_elem(@NotNull Pair_elemContext ctx) {
+        System.out.println("==Visiting pair_elem==");
         System.out.println(ctx.getText());
         String var = ctx.expr().getText();
         Type type = st.lookUp(var);
@@ -263,6 +280,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitCallParantheses(@NotNull CallParanthesesContext ctx) {
+        System.out.println("==Visiting call_function==");
         System.out.println(ctx.getText());
         // Need to check lengths of parameter lists of call function and function declaration
         String funName = ctx.ident().getText();
@@ -291,24 +309,28 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitArray_type(@NotNull Array_typeContext ctx) {
+        System.out.println("==Visiting array_type==");
         System.out.println(ctx.getText());
         return new ArrayType(visitType(ctx.type()));
     }
 
     @Override
     public Type visitPrintExpr(@NotNull PrintExprContext ctx) {
+        System.out.println("==Visiting print==");
         System.out.println(ctx.getText());
         return visitChildren(ctx);
     }
 
     @Override
     public Type visitBool_liter(@NotNull Bool_literContext ctx) {
+        System.out.println("==Visiting bool==");
         System.out.println(ctx.getText());
         return AllTypes.BOOL;
     }
 
     @Override
     public Type visitUnary_oper(@NotNull Unary_operContext ctx) {
+        System.out.println("==Visiting un_oper==");
         System.out.println(ctx.getText());
         Type argT = null, retT = null;
         switch (ctx.getText()) {
@@ -343,12 +365,14 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairParantheses(@NotNull PairParanthesesContext ctx) {
+        System.out.println("==Visiting pair==");
         System.out.println(ctx.getText());
         return new PairType(visitExpr(ctx.expr(0)), visitExpr(ctx.expr(1)));
     }
 
     @Override
     public Type visitAssignment(@NotNull AssignmentContext ctx) {
+        System.out.println("==Visiting assign==");
         System.out.println(ctx.getText());
         if (!visitAssign_lhs(ctx.assign_lhs()).equalsType(visitAssign_rhs(ctx.assign_rhs()))) {
             error("Left hand expression must have the same type as the right hand side");
@@ -358,18 +382,21 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPrintlnExpr(@NotNull PrintlnExprContext ctx) {
+        System.out.println("==Visiting println==");
         System.out.println(ctx.getText());
         return visitChildren(ctx);
     }
 
     @Override
     public Type visitBracketExpr(@NotNull BracketExprContext ctx) {
+        System.out.println("==Visiting bracketexpr==");
         System.out.println(ctx.getText());
         return visitExpr(ctx.expr());
     }
 
     @Override
     public Type visitArray_liter(@NotNull Array_literContext ctx) {
+        System.out.println("==Visiting array_liter==");
         System.out.println(ctx.getText());
         ExprContext exp = ctx.expr().get(0);
         if (exp == null) {
@@ -389,18 +416,21 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         // Check that statement is inside a function, by looking at the first element
         // of the symbol tables from the current table up to the global table and checking
         // that we have at least one first element different from 'begin'
+        System.out.println("==Visiting return==");
         System.out.println(ctx.getText());
         return visitChildren(ctx);
     }
 
     @Override
     public Type visitPair_elem_type(@NotNull Pair_elem_typeContext ctx) {
+        System.out.println("==Visiting pair_elem_type==");
         System.out.println(ctx.getText());
         return visitChildren(ctx);
     }
 
     @Override
     public Type visitProg(@NotNull ProgContext ctx) {
+        System.out.println("==Visiting prog==");
         System.out.println(ctx.getText());
         // Initialise global symbol table
         st = new SymbolTable<>();
@@ -409,12 +439,14 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitSemicolonStat(@NotNull SemicolonStatContext ctx) {
+        System.out.println("==Visiting semi_colon_stat==");
         System.out.println(ctx.getText());
         return visitChildren(ctx);
     }
 
     @Override
     public Type visitPair_liter(@NotNull Pair_literContext ctx) {
+        System.out.println("==Visiting pair_liter==");
         System.out.println(ctx.getText());
         // Need to return a null type
         return null;
@@ -422,6 +454,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitParam_list(@NotNull Param_listContext ctx) {
+        System.out.println("==Visiting param_list==");
         System.out.println(ctx.getText());
         visitChildren(ctx);
         return null;
@@ -429,6 +462,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitArg_list(@NotNull Arg_listContext ctx) {
+        System.out.println("==Visiting arg_list==");
         System.out.println(ctx.getText());
         visitChildren(ctx);
         return null;
@@ -436,16 +470,21 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitFunc(@NotNull FuncContext ctx) {
+        System.out.println("==Visiting function==");
         System.out.println(ctx.getText());
         String funName = ctx.ident().getText();
         Type funType = visitType(ctx.type());
         Type[] paramList;
+        String[] varNames = null;
         // Need to check if a parameter list even exists
         if (ctx.param_list() != null) {
-            paramList = new Type[ctx.param_list().param().size()];
+            List<ParamContext> parameters = ctx.param_list().param();
+            paramList = new Type[parameters.size()];
+            varNames = new String[parameters.size()];
             int i = 0;
-            for (ParamContext param : ctx.param_list().param()) {
+            for (ParamContext param : parameters) {
                 paramList[i] = visitParam(param);
+                varNames[i] = param.ident().getText();
                 i++;
                 System.out.println(i);
             }
@@ -456,6 +495,10 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
         SymbolTable<Type> old = st;
         st = st.funcTables.get(funName);
+
+        for (int i = 0; i < paramList.length; i++) {
+            st.add(varNames[i], paramList[i]);
+        }
 
         StatContext stat = ctx.stat();
         while (stat.children.get(1).getText().equals(";")) {
@@ -477,6 +520,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitBeginEnd(@NotNull BeginEndContext ctx) {
+        System.out.println("==Visiting begin-end==");
         System.out.println(ctx.getText());
         // Initialise a new symbol table, with access to previous symbol table contents
         st = new SymbolTable<>(st);
@@ -487,6 +531,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitWhileExpr(@NotNull WhileExprContext ctx) {
+        System.out.println("==Visiting while==");
         System.out.println(ctx.getText());
         // if (evalType(ctx.expr()) != Type.Bool) {
         //     error "Expression must evaluate to a bool value";
@@ -499,12 +544,14 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitStr_liter(@NotNull Str_literContext ctx) {
+        System.out.println("==Visiting str_liter==");
         System.out.println(ctx.getText());
         return AllTypes.STRING;
     }
 
     @Override
     public Type visitComment(@NotNull CommentContext ctx) {
+        System.out.println("==Visiting comment==");
         System.out.println(ctx.getText());
         // Skip
         return null;
