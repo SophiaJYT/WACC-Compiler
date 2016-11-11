@@ -17,6 +17,10 @@ public class Main {
 
         ParseTree tree = parser.prog();
 
+        parser.removeErrorListeners();
+
+        parser.addErrorListener(new SyntaxErrorListener());
+
         WaccVisitor visitor = new WaccVisitor();
 
         visitor.visit(tree);
