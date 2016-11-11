@@ -32,10 +32,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     public Type visitRead_lhs(@NotNull Read_lhsContext ctx) {
         System.out.println("==Visiting read==");
         System.out.println(ctx.getText());
-        String var = ctx.assign_lhs().getText();
-        Type type = st.lookUp(var);
+        Type type = visitAssign_lhs(ctx.assign_lhs());
         if (type == null) {
-            error("Variable " + var + " has not been declared");
+            error("Variable has not been declared");
         }
         if (!(type.equalsType(AllTypes.CHAR) || type.equalsType(AllTypes.INT))) {
             error("Variable must be of type int or char");
