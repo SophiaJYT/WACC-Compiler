@@ -6,6 +6,7 @@ import org.antlr.v4.runtime.misc.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
@@ -77,14 +78,26 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     public Type visitIdent(@NotNull IdentContext ctx) {
         System.out.println("==Visiting ident==");
         System.out.println(ctx.getText());
+        //System.out.println(st.lookUp(ctx.getText()) + "  I'm here");
         return st.lookUp(ctx.getText());
     }
 
     @Override
     public Type visitAssign_rhs(@NotNull Assign_rhsContext ctx) {
-        System.out.println("==Visiting assign_rhs==");
+        System.out.println("==Visiting Assign_rhs==");
         System.out.println(ctx.getText());
         return visitChildren(ctx);
+//        System.out.println("==Visiting assign_rhs==");
+//        Type type;
+//        if (ctx.pair_elem() != null) {
+//            type = visitPair_elem(ctx.pair_elem());
+//        } else {
+//            type = st.lookupAll(ctx.getText());
+//            if (type == null) {
+//                error("Variable doesn't exist");
+//            }
+//        }
+//        return type;
     }
 
     @Override
@@ -242,8 +255,12 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         ExprContext e = (ExprContext) ctx.getParent();
         Type t1 = visitExpr(e.expr(0));
         Type t2 = visitExpr(e.expr(1));
+
+        //System.out.println(t1 + "  type of fst");
+        //System.out.println(t2 + "  type of snd");
+
         if (!t1.equalsType(t2)) {
-            error("Types of both expression must be the same");
+            error("Types of both expressions must be the same");
         }
         boolean typeMatch = false;
         for (Type t : argTypes) {
@@ -484,6 +501,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         System.out.println(ctx.getText());
         String funName = ctx.ident().getText();
         Type funType = visitType(ctx.type());
+
         Type[] paramList;
         String[] varNames = null;
         // Need to check if a parameter list even exists
@@ -503,13 +521,17 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         st.addFunction(funName, funType, paramList);
 
         SymbolTable<Type> old = st;
-        st = st.funcTables.get(funName);
+        st = st.lookUpFunc(funName);
 
-        for (int i = 0; i < paramList.length; i++) {
-            st.add(varNames[i], paramList[i]);
+        if(varNames != null) {
+            for (int i = 0; i < paramList.length; i++) {
+                st.add(varNames[i], paramList[i]);
+            }
         }
 
         StatContext stat = ctx.stat();
+        visitChildren(stat);
+
         while (stat.children.get(1).getText().equals(";")) {
             stat = (StatContext) stat.children.get(stat.children.size() - 1);
         }
@@ -522,9 +544,8 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         }
 
         st = old;
-        System.out.println(st);
 
-        return visitChildren(ctx);
+        return null;
     }
 
     @Override
