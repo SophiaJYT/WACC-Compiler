@@ -17,11 +17,13 @@ public class Main {
 
         parser.removeErrorListeners();
 
-        parser.addErrorListener(new SyntaxErrorListener());
+        SyntaxErrorListener listener = new SyntaxErrorListener();
+
+        parser.addErrorListener(listener);
 
         ParseTree tree = parser.prog();
 
-        WaccVisitor visitor = new WaccVisitor();
+        WaccVisitor visitor = new WaccVisitor(listener);
 
         visitor.visit(tree);
     }
