@@ -31,7 +31,7 @@ public class SyntaxErrorListener extends ConsoleErrorListener {
     }
 
     private String getLineError(ParserRuleContext ctx){
-        return ctx.getStart().getLine() + ": " + ctx.getStart().getCharPositionInLine();
+        return ctx.getStart().getLine() + ":" + ctx.getStart().getCharPositionInLine();
     }
 
     public void addSyntaxError(ParserRuleContext ctx, String msg) {

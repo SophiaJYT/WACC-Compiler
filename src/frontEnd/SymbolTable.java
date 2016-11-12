@@ -49,7 +49,7 @@ public class SymbolTable<T> {
         return dictionary.get(name);
     }
 
-    public T lookupAll(String name) {
+    public T lookUpAll(String name) {
         SymbolTable<T> s = this;
         while (s != null) {
             T obj = s.lookUp(name);

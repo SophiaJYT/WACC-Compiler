@@ -1,12 +1,17 @@
 #!/bin/bash
 
-
 result="tests.txt"
-> $result
+testfile="test"
+temp="temp"
+stdout="stdout"
 
+> $result
 for file in $(find $1 -name "*.wacc")
 do
-  echo "Testing $file" >> $result
-  ./compile $file > "stdout.txt" 2>> $result
-  echo "=====DONE=====" >> $result
+  echo "Testing $file" > $testfile
+  ./compile $file > $stdout 2> $temp
+  cat $temp >> $testfile
+  echo "=====DONE=====" >> $testfile
+  [ -s $temp ] && cat $testfile >> $result
 done
+rm -f $temp $stdout $testfile

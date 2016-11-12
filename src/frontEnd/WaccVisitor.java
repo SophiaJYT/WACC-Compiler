@@ -27,7 +27,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     }
 
     private String getLineError(ParserRuleContext ctx){
-        return ctx.getStart().getLine() + ": " + ctx.getStart().getCharPositionInLine();
+        return ctx.getStart().getLine() + ":" + ctx.getStart().getCharPositionInLine();
     }
 
     private void addSemanticError(ParserRuleContext ctx, String msg) {
@@ -37,40 +37,44 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     private void printErrors(List<String> errors, int errorCode) {
         for (String msg : errors) {
             System.err.println(msg);
-            System.err.println("Exitcode: " + errorCode);
         }
+        System.err.println("Exitcode: " + errorCode);
         System.exit(errorCode);
     }
 
     @Override
     public Type visitExitExpr(@NotNull ExitExprContext ctx) {
-        if (!visitExpr(ctx.expr()).equalsType(AllTypes.INT)) {
+        Type expected = visitExpr(ctx.expr());
+        if (!expected.equalsType(AllTypes.INT)) {
             addSemanticError(ctx, "Cannot exit with non-int value");
         }
-        return visitChildren(ctx);
+        return null;
     }
 
     @Override
     public Type visitRead_lhs(@NotNull Read_lhsContext ctx) {
         Type type = visitAssign_lhs(ctx.assign_lhs());
+        String var = ctx.assign_lhs().getText();
         if (type == null) {
-            addSemanticError(ctx, "Variable has not been declared");
+            addSemanticError(ctx, "Variable " + var + " has not been declared");
             return null;
         }
         if (!(type.equalsType(AllTypes.CHAR) || type.equalsType(AllTypes.INT))) {
-            addSemanticError(ctx, "Variable must be of type int or char");
+            addSemanticError(ctx, "Variable " + var + " must be of type int or char");
         }
         return null;
     }
 
     @Override
     public Type visitArray_elem(@NotNull Array_elemContext ctx) {
-        Type type = st.lookUp(ctx.getText());
+        Type type = st.lookUpAll(ctx.getText());
         if (type == null) {
             addSemanticError(ctx, "Array element doesn't exist");
+            return null;
         }
         for (ExprContext e : ctx.expr()) {
-            if (!visitExpr(e).equalsType(AllTypes.INT)) {
+            Type arrayIndex = visitExpr(e);
+            if (!arrayIndex.equalsType(AllTypes.INT)) {
                 addSemanticError(ctx, "Must use an integer to access array element");
             }
         }
@@ -79,21 +83,13 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitAssign_lhs(@NotNull Assign_lhsContext ctx) {
-        Type type;
-        if (ctx.pair_elem() != null) {
-            type = visitPair_elem(ctx.pair_elem());
-        } else {
-            type = st.lookupAll(ctx.getText());
-            if (type == null) {
-                addSemanticError(ctx, "Variable doesn't exist");
-            }
-        }
-        return type;
+        return visitChildren(ctx);
     }
 
     @Override
     public Type visitIdent(@NotNull IdentContext ctx) {
-        return st.lookUp(ctx.getText());
+        // Temporary fix as Ident covers too many cases.
+        return null;
     }
 
     @Override
@@ -122,8 +118,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitType(@NotNull TypeContext ctx) {
+        // Bit of a hack, but can't help it
         if (ctx.type() != null) {
-            return visitType(ctx.type());
+            return new ArrayType(visitType(ctx.type()));
         }
         return visitChildren(ctx);
     }
@@ -164,8 +161,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPair_type(@NotNull Pair_typeContext ctx) {
-        return new PairType(visitPair_elem_type(ctx.pair_elem_type(0)),
-                visitPair_elem_type(ctx.pair_elem_type(1)));
+        Type lhs = visitPair_elem_type(ctx.pair_elem_type(0));
+        Type rhs = visitPair_elem_type(ctx.pair_elem_type(1));
+        return new PairType(lhs, rhs);
     }
 
     @Override
@@ -180,7 +178,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitInitialization(@NotNull InitializationContext ctx) {
         String var = ctx.ident().getText();
-        Type type = visitIdent(ctx.ident());
+        Type type = st.lookUp(ctx.ident().getText());
         if (type != null) {
             addSemanticError(ctx, "Variable " + var + " is already in use");
         }
@@ -261,15 +259,18 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         if (ctx.binary_oper() != null) {
             return visitBinary_oper(ctx.binary_oper());
         }
+        if (ctx.ident() != null) {
+            return st.lookUpAll(ctx.ident().getText());
+        }
         return visitChildren(ctx);
     }
 
     @Override
     public Type visitPair_elem(@NotNull Pair_elemContext ctx) {
         String var = ctx.expr().getText();
-        Type type = st.lookUp(var);
+        Type type = st.lookUpAll(var);
         if (type == null) {
-            addSemanticError(ctx, "Variable doesn't exist");
+            addSemanticError(ctx, "Variable " + var + " doesn't exist");
         }
         PairType t = (PairType) type;
         type = (ctx.FIRST() != null) ? t.getLeft() : t.getRight();
@@ -309,7 +310,8 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPrintExpr(@NotNull PrintExprContext ctx) {
-        return visitChildren(ctx);
+        // Print should work with any expression.
+        return null;
     }
 
     @Override
@@ -352,20 +354,29 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairParantheses(@NotNull PairParanthesesContext ctx) {
-        return new PairType(visitExpr(ctx.expr(0)), visitExpr(ctx.expr(1)));
+        Type lhs = visitExpr(ctx.expr(0));
+        Type rhs = visitExpr(ctx.expr(1));
+        return new PairType(lhs, rhs);
     }
 
     @Override
     public Type visitAssignment(@NotNull AssignmentContext ctx) {
-        if (!visitAssign_lhs(ctx.assign_lhs()).equalsType(visitAssign_rhs(ctx.assign_rhs()))) {
-            addSemanticError(ctx, "Left hand expression must have the same type as the right hand side");
+        Type lhs = visitAssign_lhs(ctx.assign_lhs());
+        Type rhs = visitAssign_rhs(ctx.assign_rhs());
+        if (lhs == null || rhs == null) {
+            return null;
         }
-        return visitChildren(ctx);
+        if (!lhs.equalsType(rhs)) {
+            addSemanticError(ctx, "Left hand side '" + lhs +
+                    "' does not match with right hand side '" + rhs + "'");
+        }
+        return null;
     }
 
     @Override
     public Type visitPrintlnExpr(@NotNull PrintlnExprContext ctx) {
-        return visitChildren(ctx);
+        // Same as PrintExpr
+        return null;
     }
 
     @Override
@@ -379,18 +390,19 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         if (expSize == 0) {
             return new ArrayType(AllTypes.ANY);
         }
-        ExprContext exp = ctx.expr().get(0);
+        ExprContext exp = ctx.expr(0);
         Type t = visitExpr(exp);
         for (ExprContext e : ctx.expr()) {
             if (t != visitExpr(e)) {
                 addSemanticError(ctx, "Array values must all be of the same type");
             }
         }
-        return t;
+        return new ArrayType(t);
     }
 
     @Override
     public Type visitReturnExpr(@NotNull ReturnExprContext ctx) {
+        // Returning a type here to help test function semantics
         return visitChildren(ctx);
     }
 
@@ -418,7 +430,8 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitSemicolonStat(@NotNull SemicolonStatContext ctx) {
-        return visitChildren(ctx);
+        visitChildren(ctx);
+        return null;
     }
 
     @Override
@@ -503,10 +516,12 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitWhileExpr(@NotNull WhileExprContext ctx) {
-        if (!visitExpr(ctx.expr()).equalsType(AllTypes.BOOL)) {
+        Type expected = visitExpr(ctx.expr());
+        if (!expected.equalsType(AllTypes.BOOL)) {
             addSemanticError(ctx, "While condition must evaluate to a bool value");
         }
-        return visitChildren(ctx);
+        visitChildren(ctx.stat());
+        return null;
     }
 
     @Override

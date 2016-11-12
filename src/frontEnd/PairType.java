@@ -29,11 +29,6 @@ public class PairType implements Type {
 
     @Override
     public boolean equalsType(Type that){
-//        if (that instanceof PairType) {
-//            PairType thatPair=(PairType) that;
-//            return ((this.getLeft().equalsType(thatPair.getLeft())) && this
-//                    .getRight().equalsType(thatPair.getRight()));
-//        }
         if (that instanceof PairType) {
             Type t1 = ((PairType) that).getLeft(), t2 = ((PairType) that).getRight();
             boolean result = true;
