@@ -15,11 +15,11 @@ public class Main {
 
         WaccParser parser = new WaccParser(new CommonTokenStream(lexer));
 
-        ParseTree tree = parser.prog();
-
         parser.removeErrorListeners();
 
         parser.addErrorListener(new SyntaxErrorListener());
+
+        ParseTree tree = parser.prog();
 
         WaccVisitor visitor = new WaccVisitor();
 
