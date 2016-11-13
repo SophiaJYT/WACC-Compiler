@@ -23,7 +23,7 @@ public class SyntaxErrorListener extends ConsoleErrorListener {
                             int charPositionInLine, String msg,
                             RecognitionException e) {
         syntaxErrors.add("Syntax Error: Line " + line +
-                ": " + charPositionInLine + " - " + msg);
+                ":" + charPositionInLine + " - " + msg);
     }
 
     public boolean hasSyntaxErrors() {

@@ -158,10 +158,11 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitInt_liter(@NotNull Int_literContext ctx) {
-//        long size = Long.parseLong(ctx.getText());
-//        if (size < Integer.MIN_VALUE || size > Integer.MAX_VALUE) {
-//            listener.addSyntaxError(ctx, "Integer value must be between -2^31 and 2^31 - 1");
-//        }
+        long size = Long.parseLong(ctx.getText());
+        long signedInt = (ctx.PLUS() != null) ? size : -1 * size;
+        if (signedInt < Integer.MIN_VALUE || signedInt > Integer.MAX_VALUE) {
+            listener.addSyntaxError(ctx, "Integer value must be between -2^31 and 2^31 - 1");
+        }
         return AllTypes.INT;
     }
 
@@ -243,6 +244,12 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         if (visitExpr(ctx.expr()) != AllTypes.BOOL) {
             addSemanticError(ctx, "If condition must evaluate to a bool value");
         }
+
+        // Check that we have the right number of statements
+        if (ctx.stat().size() <  2) {
+            return null;
+        }
+
         curr = new SymbolTable<>(curr);
         Type thenStat = visit(ctx.stat(0));
         curr = curr.encSymbolTable;
@@ -370,6 +377,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
         if (paramList.length != numOfArgs) {
             addSemanticError(ctx, "Invalid number of arguments");
+            return retType;
         }
         for (int i = 0; i < numOfArgs; i++) {
             ExprContext e = ctx.arg_list().expr(i);
@@ -441,8 +449,12 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     public Type visitAssignment(@NotNull AssignmentContext ctx) {
         Assign_lhsContext lhs = ctx.assign_lhs();
         Assign_rhsContext rhs = ctx.assign_rhs();
+        if (lhs == null || rhs == null) {
+            return null;
+        }
         Type lhsType = visitAssign_lhs(ctx.assign_lhs());
         Type rhsType = visitAssign_rhs(ctx.assign_rhs());
+
         if (lhsType == null) {
             addSemanticError(ctx, "Variable '" + lhs.getText() +
                     "' is not declared in this scope");
@@ -579,6 +591,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         Type[] paramList = head.lookUpParams(funName);
         for (int i = 0; i < paramList.length; i++) {
             Type type = paramList[i];
+            if (type == null) {
+                return null;
+            }
             String var = varNames[i];
             curr.add(var, type);
             if (type instanceof ArrayType) {
@@ -615,6 +630,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitWhileExpr(@NotNull WhileExprContext ctx) {
         Type expected = visitExpr(ctx.expr());
+        if (expected == null) {
+            return null;
+        }
         if (!expected.equalsType(AllTypes.BOOL)) {
             addSemanticError(ctx, "While condition must evaluate to a bool value");
         }
