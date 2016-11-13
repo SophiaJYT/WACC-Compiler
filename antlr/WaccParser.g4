@@ -70,9 +70,9 @@ expr: int_liter
 | pair_liter
 | ident
 | array_elem
-| unary_oper expr
 | expr binary_oper expr
 | expr bool_binary_oper expr
+| unary_oper expr
 | bracketExpr ;
 
 bracketExpr: OPEN_PARENTHESES expr CLOSE_PARENTHESES ;
@@ -102,7 +102,7 @@ ident: IDENTIFIER ;
 
 array_elem: ident (OPEN_SQUARE_BRACKET expr CLOSE_SQUARE_BRACKET)+ ;
 
-int_liter: INTEGER ;
+int_liter: (PLUS | MINUS)? INTEGER ;
 
 bool_liter: TRUE
 | FALSE ;

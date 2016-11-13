@@ -23,6 +23,8 @@ public class ArrayType implements Type {
             ArrayType thatArray = (ArrayType) that;
             return this.getElement().equalsType(thatArray.getElement());
         }
-        return that == AllTypes.NULL || that == AllTypes.ANY;
+        return that == AllTypes.NULL ||
+               that == AllTypes.ANY ||
+               that == AllTypes.STRING && this.equalsType(new ArrayType(AllTypes.CHAR)) ;
     }
 }

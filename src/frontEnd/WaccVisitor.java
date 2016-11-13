@@ -15,7 +15,8 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     private List<String> semanticErrors;
     private SyntaxErrorListener listener;
-    private SymbolTable<Type> st;
+    private SymbolTable<Type> head;
+    private SymbolTable<Type> curr;
 
     public WaccVisitor(SyntaxErrorListener listener) {
         this.listener = listener;
@@ -47,18 +48,19 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         Type expected = visitExpr(ctx.expr());
         if (!expected.equalsType(AllTypes.INT)) {
             addSemanticError(ctx, "Cannot exit with non-int value");
+            return AllTypes.ANY;
         }
-        return null;
+        return AllTypes.ANY;
     }
 
     @Override
     public Type visitRead_lhs(@NotNull Read_lhsContext ctx) {
         IdentContext ident = ctx.assign_lhs().ident();
-        Type type = (ident != null) ? st.lookUpAll(ident.getText())
+        Type type = (ident != null) ? curr.lookUpAll(ident.getText())
                 : visitAssign_lhs(ctx.assign_lhs());
         String var = ctx.assign_lhs().getText();
         if (type == null) {
-            type = st.lookUpAll(ctx.assign_lhs().ident().getText());
+            type = curr.lookUpAll(ctx.assign_lhs().ident().getText());
         }
         if (type == null) {
             addSemanticError(ctx, "Variable " + var + " has not been declared");
@@ -78,11 +80,11 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                 Type arrayIndex = visitExpr(e);
                 if (arrayIndex == null) {
                     // It must be an identifier as a result.
-                    arrayIndex = st.lookUpAll(e.ident().getText());
+                    arrayIndex = curr.lookUpAll(e.ident().getText());
                 }
                 if (!arrayIndex.equalsType(AllTypes.INT)) {
                     addSemanticError(ctx, "Must use an integer to access array element");
-                    return null;
+                    return AllTypes.ANY;
                 }
                 // Potentially throw array out of bounds exception here.
 
@@ -90,13 +92,13 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             // Just need to check the type, therefore 0 index will satisfy this.
             var = var + "[0]";
         }
-        Type type = st.lookUpAll(var);
+        Type type = curr.lookUpAll(var);
         if (type == null) {
-            if (st.lookUpAll(ctx.ident().getText()).equalsType(AllTypes.STRING)) {
+            if (curr.lookUpAll(ctx.ident().getText()).equalsType(AllTypes.STRING)) {
                 return AllTypes.CHAR;
             }
             addSemanticError(ctx, "Array element doesn't exist");
-            return null;
+            return AllTypes.ANY;
         }
         for (ExprContext e : ctx.expr()) {
             Type arrayIndex = visitExpr(e);
@@ -126,7 +128,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitFreeExpr(@NotNull FreeExprContext ctx) {
         String var = ctx.expr().getText();
-        Type type = st.lookUp(var);
+        Type type = curr.lookUpAll(var);
         if (type == null) {
             addSemanticError(ctx, "Variable " + var + " has not been declared");
         }
@@ -139,7 +141,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitSkip(@NotNull SkipContext ctx) {
         // Skip cannot be invalid semantically
-        return visitChildren(ctx);
+        return null;
     }
 
     @Override
@@ -153,10 +155,10 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitInt_liter(@NotNull Int_literContext ctx) {
-        long size = Long.parseLong(ctx.getText());
-        if (size < Integer.MIN_VALUE || size > Integer.MAX_VALUE) {
-            listener.addSyntaxError(ctx, "Integer value must be between -2^31 and 2^31 - 1");
-        }
+//        long size = Long.parseLong(ctx.getText());
+//        if (size < Integer.MIN_VALUE || size > Integer.MAX_VALUE) {
+//            listener.addSyntaxError(ctx, "Integer value must be between -2^31 and 2^31 - 1");
+//        }
         return AllTypes.INT;
     }
 
@@ -178,7 +180,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitParam(@NotNull ParamContext ctx) {
         String var = ctx.ident().getText();
-        Type type = st.lookUp(var);
+        Type type = curr.lookUp(var);
         if (type != null) {
             addSemanticError(ctx, "Variable " + var + " is already in use");
         }
@@ -204,12 +206,12 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitInitialization(@NotNull InitializationContext ctx) {
         String var = ctx.ident().getText();
-        Type expected = st.lookUp(ctx.ident().getText());
+        Type expected = curr.lookUp(ctx.ident().getText());
         if (expected != null) {
             addSemanticError(ctx, "Variable " + var + " is already in use");
         }
         expected = visitType(ctx.type());
-        st.add(var, expected);
+        curr.add(var, expected);
         Type actual = visitAssign_rhs(ctx.assign_rhs());
         if (expected instanceof ArrayType) {
             if (!actual.equalsType(expected)) {
@@ -222,7 +224,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                 addSemanticError(ctx, "Type " + lhsElemType + " does not match type " + rhsElemType);
                 return null;
             }
-            st.add(var + "[0]", rhsElemType);
+            curr.add(var + "[0]", rhsElemType);
         }
         if (actual == AllTypes.ANY) {
             return expected;
@@ -238,7 +240,22 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         if (visitExpr(ctx.expr()) != AllTypes.BOOL) {
             addSemanticError(ctx, "If condition must evaluate to a bool value");
         }
-        return visitChildren(ctx);
+        curr = new SymbolTable<>(curr);
+        Type thenStat = visit(ctx.stat(0));
+        curr = curr.encSymbolTable;
+
+        curr = new SymbolTable<>(curr);
+        Type elseStat = visit(ctx.stat(1));
+        curr = curr.encSymbolTable;
+
+        if (thenStat != null && elseStat != null) {
+            if (thenStat.equalsType(elseStat)) {
+                return thenStat;
+            }
+            addSemanticError(ctx, "Statements must have the same type (expected: "
+                    + thenStat + ", actual: " + elseStat + ")");
+        }
+        return null;
     }
 
     @Override
@@ -314,7 +331,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             return visitUnary_oper(ctx.unary_oper());
         }
         if (ctx.ident() != null) {
-            return st.lookUpAll(ctx.ident().getText());
+            return curr.lookUpAll(ctx.ident().getText());
         }
         return visitChildren(ctx);
     }
@@ -322,7 +339,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitPair_elem(@NotNull Pair_elemContext ctx) {
         String var = ctx.expr().getText();
-        Type type = st.lookUpAll(var);
+        Type type = curr.lookUpAll(var);
         if (type == null) {
             addSemanticError(ctx, "Variable " + var + " doesn't exist");
         }
@@ -333,28 +350,32 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitCallParantheses(@NotNull CallParanthesesContext ctx) {
+
         // Need to check lengths of parameter lists of call function and function declaration
         String funName = ctx.ident().getText();
-        Type type = st.lookUp("func:" + funName);
-        if (type == null) {
+        Type retType = head.lookUp("func:" + funName);
+        if (retType == null) {
             addSemanticError(ctx, "Function " + funName + " doesn't exist");
         }
-        Type[] paramList = st.lookUpParam(funName);
+
+        Type[] paramList = head.lookUpParams(funName);
         int numOfArgs = 0;
         // If arg list exists, update numOfArgs to size of arg list
         if (ctx.arg_list() != null) {
             numOfArgs = ctx.arg_list().expr().size();
         }
+
         if (paramList.length != numOfArgs) {
             addSemanticError(ctx, "Invalid number of arguments");
         }
         for (int i = 0; i < numOfArgs; i++) {
-            Type callType = visitExpr(ctx.arg_list().expr(i));
-            if (!callType.equalsType(paramList[i])) {
+            ExprContext e = ctx.arg_list().expr(i);
+            Type argType = visitExpr(ctx.arg_list().expr(i));
+            if (!argType.equalsType(paramList[i])) {
                 addSemanticError(ctx, "Types don't match");
             }
         }
-        return type;
+        return retType;
     }
 
     @Override
@@ -386,7 +407,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                 retT = AllTypes.INT;
                 break;
             case "len":
-                argT = new ArrayType(null);
+                argT = new ArrayType(AllTypes.ANY);
                 retT = AllTypes.INT;
                 break;
             case "ord":
@@ -470,8 +491,27 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitProg(@NotNull ProgContext ctx) {
-        // Initialise global symbol table
-        st = new SymbolTable<>();
+        // Initialise global symbol table and current symbol table
+        head = new SymbolTable<>();
+        curr = head;
+
+        for (FuncContext func : ctx.func()) {
+            String funName = func.ident().getText();
+            Type funType = visitType(func.type());
+            Type[] paramList;
+            // Need to check if a parameter list even exists
+            if (func.param_list() != null) {
+                List<ParamContext> parameters = func.param_list().param();
+                paramList = new Type[parameters.size()];
+                for (int i = 0; i < parameters.size(); i++) {
+                    paramList[i] = visitParam(parameters.get(i));
+                }
+            } else {
+                paramList = new Type[0];
+            }
+            head.addFunction(funName, funType, paramList);
+        }
+
         visitChildren(ctx);
         if (listener.hasSyntaxErrors()) {
             printErrors(listener.getSyntaxErrors(), SYNTAX_ERROR_CODE);
@@ -484,8 +524,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitSemicolonStat(@NotNull SemicolonStatContext ctx) {
-        visitChildren(ctx);
-        return null;
+        return visitChildren(ctx);
     }
 
     @Override
@@ -510,51 +549,44 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         String funName = ctx.ident().getText();
         Type funType = visitType(ctx.type());
 
-        Type[] paramList;
-        String[] varNames = null;
+        String[] varNames;
         // Need to check if a parameter list even exists
         if (ctx.param_list() != null) {
             List<ParamContext> parameters = ctx.param_list().param();
-            paramList = new Type[parameters.size()];
             varNames = new String[parameters.size()];
-            int i = 0;
-            for (ParamContext param : parameters) {
-                paramList[i] = visitParam(param);
-                varNames[i] = param.ident().getText();
-                i++;
+            for (int i = 0; i < parameters.size(); i++) {
+                varNames[i] = parameters.get(i).ident().getText();
             }
         } else {
-            paramList = new Type[0];
+            varNames = new String[0];
         }
 
+        SymbolTable<Type> old = curr;
+        curr = head.lookUpFunc(funName);
 
-        st.addFunction(funName, funType, paramList);
-
-        SymbolTable<Type> old = st;
-        st = st.lookUpFunc(funName);
-
-        if (varNames != null) {
-            for (int i = 0; i < paramList.length; i++) {
-                st.add(varNames[i], paramList[i]);
+        Type[] paramList = head.lookUpParams(funName);
+        for (int i = 0; i < paramList.length; i++) {
+            Type type = paramList[i];
+            String var = varNames[i];
+            curr.add(var, type);
+            if (type instanceof ArrayType) {
+                curr.add(var + "[0]", ((ArrayType) type).getElement());
             }
         }
 
-        StatContext stat = ctx.stat();
-        visitChildren(stat);
+        Type retType = visit(ctx.stat());
 
-        while (stat.children.get(1).getText().equals(";")) {
-            stat = (StatContext) stat.children.get(stat.children.size() - 1);
-        }
-        if (!stat.children.get(0).getText().equals("return")) {
-            addSemanticError(ctx, "Function does not have a return statement");
-        }
-        ReturnExprContext returnStat = (ReturnExprContext) stat;
-        if (!visitExpr(returnStat.expr()).equalsType(funType)) {
-            addSemanticError(ctx, "Return type of '" + returnStat.expr().getText()
-                    + "' must match the function return type");
+        if (retType == null) {
+            listener.addSyntaxError(ctx, "Function '" + funName + "' does not have a return statement");
+            return null;
         }
 
-        st = old;
+        if (!retType.equalsType(funType)) {
+            addSemanticError(ctx, "Return type '" + retType + "' must match" +
+                    " the function return type '" + funType + "'");
+        }
+
+        curr = old;
 
         return null;
     }
@@ -562,9 +594,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitBeginEnd(@NotNull BeginEndContext ctx) {
         // Initialise a new symbol table, with access to previous symbol table contents
-        st = new SymbolTable<>(st);
+        curr = new SymbolTable<>(curr);
         visitChildren(ctx);
-        st = st.encSymbolTable;
+        curr = curr.encSymbolTable;
         return null;
     }
 
@@ -574,7 +606,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         if (!expected.equalsType(AllTypes.BOOL)) {
             addSemanticError(ctx, "While condition must evaluate to a bool value");
         }
+        curr = new SymbolTable<>(curr);
         visitChildren(ctx.stat());
+        curr = curr.encSymbolTable;
         return null;
     }
 

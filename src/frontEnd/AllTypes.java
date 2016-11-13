@@ -28,6 +28,8 @@ public enum AllTypes implements Type {
         if (that instanceof AllTypes) {
             return this == that || this == ANY || that == ANY;
         }
-        return this == ANY || this == NULL && (that instanceof ArrayType || that instanceof PairType);
+        return this == ANY ||
+               this == STRING && that.equalsType(new ArrayType(CHAR)) ||
+               this == NULL && (that instanceof ArrayType || that instanceof PairType);
     }
 }
