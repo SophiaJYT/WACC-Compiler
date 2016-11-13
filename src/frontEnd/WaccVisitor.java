@@ -562,7 +562,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         }
 
         Type exitType = visitChildren(ctx);
-        System.out.println(exitType);
         if (exitType != null && exitType != AllTypes.ANY) {
             addSemanticError(ctx, "Cannot return from the main function");
         }
@@ -577,7 +576,14 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitSemicolonStat(@NotNull SemicolonStatContext ctx) {
-        return visitChildren(ctx);
+        StatContext stat1 = ctx.stat(0);
+        StatContext stat2 = ctx.stat(1);
+        Type endType = visit(stat1);
+        if (endType != null && stat2 != null && curr != head) {
+            listener.addSyntaxError(ctx, "Function has not ended with a return or exit statement");
+            return endType;
+        }
+        return visit(stat2);
     }
 
     @Override
