@@ -125,9 +125,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitAssign_rhs(@NotNull Assign_rhsContext ctx) {
-        if (ctx.expr().ident() != null) {
-            return curr.lookUpAll(ctx.expr().ident().getText());
-        }
         return visitChildren(ctx);
     }
 
