@@ -1,5 +1,6 @@
 package frontEnd;
 
+import antlr.WaccParser;
 import antlr.WaccParser.*;
 import antlr.WaccParserBaseVisitor;
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -48,7 +49,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         Type expected = visitExpr(ctx.expr());
         if (!expected.equalsType(AllTypes.INT)) {
             addSemanticError(ctx, "Cannot exit with non-int value");
-            return AllTypes.ANY;
         }
         return AllTypes.ANY;
     }
@@ -86,8 +86,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                     addSemanticError(ctx, "Must use an integer to access array element");
                     return AllTypes.ANY;
                 }
-                // Potentially throw array out of bounds exception here.
-
             }
             // Just need to check the type, therefore 0 index will satisfy this.
             var = var + "[0]";
@@ -97,7 +95,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             if (curr.lookUpAll(ctx.ident().getText()).equalsType(AllTypes.STRING)) {
                 return AllTypes.CHAR;
             }
-            addSemanticError(ctx, "Array element doesn't exist");
+            addSemanticError(ctx, "Array element '" + var + "' doesn't exist");
             return AllTypes.ANY;
         }
         for (ExprContext e : ctx.expr()) {
@@ -158,7 +156,12 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitInt_liter(@NotNull Int_literContext ctx) {
-        long size = Long.parseLong(ctx.getText());
+        long size;
+        try {
+            size = Long.parseLong(ctx.getText());
+        } catch (NumberFormatException e) {
+            return AllTypes.INT;
+        }
         long signedInt = (ctx.PLUS() != null) ? size : -1 * size;
         if (signedInt < Integer.MIN_VALUE || signedInt > Integer.MAX_VALUE) {
             listener.addSyntaxError(ctx, "Integer value must be between -2^31 and 2^31 - 1");
@@ -217,18 +220,8 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         expected = visitType(ctx.type());
         curr.add(var, expected);
         Type actual = visitAssign_rhs(ctx.assign_rhs());
-        if (expected instanceof ArrayType) {
-            if (!actual.equalsType(expected)) {
-                addSemanticError(ctx, "Right hand side does not match expected type '" + expected + "'");
-                return null;
-            }
-            Type lhsElemType = ((ArrayType) expected).getElement();
-            Type rhsElemType = ((ArrayType) actual).getElement();
-            if (!lhsElemType.equalsType(rhsElemType)) {
-                addSemanticError(ctx, "Type " + lhsElemType + " does not match type " + rhsElemType);
-                return null;
-            }
-            curr.add(var + "[0]", rhsElemType);
+        if (addArrayElem(ctx, var, expected, actual)) {
+            return null;
         }
         if (actual == AllTypes.ANY) {
             return expected;
@@ -237,6 +230,25 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             addSemanticError(ctx, "Type " + expected + " does not match type " + actual);
         }
         return null;
+    }
+
+    private boolean addArrayElem(@NotNull ParserRuleContext ctx, String var, Type expected, Type actual) {
+        if (expected instanceof ArrayType) {
+            if (!actual.equalsType(expected)) {
+                addSemanticError(ctx, "Right hand side does not match expected type '" + expected + "'");
+                return true;
+            }
+            Type lhsElemType = ((ArrayType) expected).getElement();
+            Type rhsElemType = ((ArrayType) actual).getElement();
+            if (!lhsElemType.equalsType(rhsElemType)) {
+                addSemanticError(ctx, "Type " + lhsElemType + " does not match type " + rhsElemType);
+                return true;
+            }
+            var = var + "[0]";
+            curr.add(var, rhsElemType);
+            addArrayElem(ctx, var, rhsElemType, lhsElemType);
+        }
+        return false;
     }
 
     @Override
@@ -341,7 +353,13 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             return visitUnary_oper(ctx.unary_oper());
         }
         if (ctx.ident() != null) {
-            return curr.lookUpAll(ctx.ident().getText());
+            Type varType = curr.lookUpAll(ctx.ident().getText());
+            if (varType == null) {
+                addSemanticError(ctx.ident(), "Variable '" + ctx.ident().getText() +
+                        "' is not declared in this scope.");
+                return AllTypes.ANY;
+            }
+            return varType;
         }
         return visitChildren(ctx);
     }
@@ -397,6 +415,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitPrintExpr(@NotNull PrintExprContext ctx) {
         // Print should work with any expression.
+        visitExpr(ctx.expr());
         return null;
     }
 
@@ -475,6 +494,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitPrintlnExpr(@NotNull PrintlnExprContext ctx) {
         // Same as PrintExpr
+        visitExpr(ctx.expr());
         return null;
     }
 
@@ -533,10 +553,16 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             } else {
                 paramList = new Type[0];
             }
+            if (head.lookUpFunc(funName) != null) {
+                addSemanticError(ctx, "Function '" + funName + "' is already defined");
+            }
             head.addFunction(funName, funType, paramList);
         }
 
-        visitChildren(ctx);
+        Type exitType = visitChildren(ctx);
+        if (exitType != null && exitType != AllTypes.ANY) {
+            addSemanticError(ctx, "Cannot return from the main function");
+        }
         if (listener.hasSyntaxErrors()) {
             printErrors(listener.getSyntaxErrors(), SYNTAX_ERROR_CODE);
         }
@@ -596,6 +622,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             }
             String var = varNames[i];
             curr.add(var, type);
+            addArrayElem(ctx, var, type, type);
             if (type instanceof ArrayType) {
                 curr.add(var + "[0]", ((ArrayType) type).getElement());
             }
