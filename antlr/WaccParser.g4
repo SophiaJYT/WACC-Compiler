@@ -72,6 +72,7 @@ expr: int_liter
 | array_elem
 | unary_oper expr
 | expr binary_oper expr
+| expr bool_binary_oper expr
 | bracketExpr ;
 
 bracketExpr: OPEN_PARENTHESES expr CLOSE_PARENTHESES ;
@@ -81,6 +82,9 @@ unary_oper: NOT
 | LENGTH
 | ORD
 | CHR ;
+
+bool_binary_oper: AND
+| OR ;
 
 binary_oper: MULTIPLY
 | DIVIDE
@@ -92,9 +96,7 @@ binary_oper: MULTIPLY
 | GREATER_THAN_OR_EQUAL
 | LESS_THAN_OR_EQUAL
 | EQUAL
-| NOT_EQUAL
-| AND
-| OR ;
+| NOT_EQUAL ;
 
 ident: IDENTIFIER ;
 

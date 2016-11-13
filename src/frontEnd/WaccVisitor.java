@@ -53,8 +53,13 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitRead_lhs(@NotNull Read_lhsContext ctx) {
-        Type type = visitAssign_lhs(ctx.assign_lhs());
+        IdentContext ident = ctx.assign_lhs().ident();
+        Type type = (ident != null) ? st.lookUpAll(ident.getText())
+                : visitAssign_lhs(ctx.assign_lhs());
         String var = ctx.assign_lhs().getText();
+        if (type == null) {
+            type = st.lookUpAll(ctx.assign_lhs().ident().getText());
+        }
         if (type == null) {
             addSemanticError(ctx, "Variable " + var + " has not been declared");
             return null;
@@ -81,8 +86,8 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                 }
                 // Potentially throw array out of bounds exception here.
 
-                // Just need to check the type, therefore 0 index will satisfy this.
             }
+            // Just need to check the type, therefore 0 index will satisfy this.
             var = var + "[0]";
         }
         Type type = st.lookUpAll(var);
@@ -199,19 +204,19 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitInitialization(@NotNull InitializationContext ctx) {
         String var = ctx.ident().getText();
-        Type type = st.lookUp(ctx.ident().getText());
-        if (type != null) {
+        Type expected = st.lookUp(ctx.ident().getText());
+        if (expected != null) {
             addSemanticError(ctx, "Variable " + var + " is already in use");
         }
-        type = visitType(ctx.type());
-        st.add(var, type);
+        expected = visitType(ctx.type());
+        st.add(var, expected);
         Type actual = visitAssign_rhs(ctx.assign_rhs());
-        if (type instanceof ArrayType) {
-            if (!actual.equalsType(type)) {
-                addSemanticError(ctx, "Right hand side does not match expected type '" + type + "'");
+        if (expected instanceof ArrayType) {
+            if (!actual.equalsType(expected)) {
+                addSemanticError(ctx, "Right hand side does not match expected type '" + expected + "'");
                 return null;
             }
-            Type lhsElemType = ((ArrayType) type).getElement();
+            Type lhsElemType = ((ArrayType) expected).getElement();
             Type rhsElemType = ((ArrayType) actual).getElement();
             if (!lhsElemType.equalsType(rhsElemType)) {
                 addSemanticError(ctx, "Type " + lhsElemType + " does not match type " + rhsElemType);
@@ -220,10 +225,10 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             st.add(var + "[0]", rhsElemType);
         }
         if (actual == AllTypes.ANY) {
-            return type;
+            return expected;
         }
-        if (!type.equalsType(actual)) {
-            addSemanticError(ctx, "Type " + type + " does not match type " + actual);
+        if (!expected.equalsType(actual)) {
+            addSemanticError(ctx, "Type " + expected + " does not match type " + actual);
         }
         return null;
     }
@@ -234,6 +239,23 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             addSemanticError(ctx, "If condition must evaluate to a bool value");
         }
         return visitChildren(ctx);
+    }
+
+    @Override
+    public Type visitBool_binary_oper(@NotNull Bool_binary_operContext ctx) {
+        Type argT = AllTypes.BOOL;
+        Type retT = AllTypes.BOOL;
+        ExprContext e = (ExprContext) ctx.getParent();
+        Type t1 = visitExpr(e.expr(0));
+        Type t2 = visitExpr(e.expr(1));
+        if (!t1.equalsType(t2)) {
+            addSemanticError(ctx, "Type on left hand side '" + t1 +
+                    "' does not match type on right hand side '" + t2 + "'");
+        }
+        if (!argT.equalsType(t1)) {
+            addSemanticError(ctx, "Binary operator is not applicable for type " + t1);
+        }
+        return retT;
     }
 
     @Override
@@ -257,11 +279,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                 argTypes.add(AllTypes.CHAR);
                 retT = AllTypes.BOOL;
                 break;
-            case "&&":
-            case "||":
-                argTypes.add(AllTypes.BOOL);
-                retT = AllTypes.BOOL;
-                break;
             case "==":
             case "!=":
                 argTypes.add(AllTypes.ANY);
@@ -271,9 +288,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         ExprContext e = (ExprContext) ctx.getParent();
         Type t1 = visitExpr(e.expr(0));
         Type t2 = visitExpr(e.expr(1));
-
         if (!t1.equalsType(t2)) {
-            addSemanticError(ctx, "Types of both expressions must be the same");
+            addSemanticError(ctx, "Type on left hand side '" + t1 +
+                    "' does not match type on right hand side '" + t2 + "'");
         }
         boolean typeMatch = false;
         for (Type t : argTypes) {
@@ -292,6 +309,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     public Type visitExpr(@NotNull ExprContext ctx) {
         if (ctx.binary_oper() != null) {
             return visitBinary_oper(ctx.binary_oper());
+        }
+        if (ctx.unary_oper() != null) {
+            return visitUnary_oper(ctx.unary_oper());
         }
         if (ctx.ident() != null) {
             return st.lookUpAll(ctx.ident().getText());
