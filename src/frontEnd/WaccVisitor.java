@@ -111,6 +111,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitAssign_lhs(@NotNull Assign_lhsContext ctx) {
+        if (ctx.ident() != null) {
+            return curr.lookUpAll(ctx.ident().getText());
+        }
         return visitChildren(ctx);
     }
 
@@ -122,6 +125,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitAssign_rhs(@NotNull Assign_rhsContext ctx) {
+        if (ctx.expr().ident() != null) {
+            return curr.lookUpAll(ctx.expr().ident().getText());
+        }
         return visitChildren(ctx);
     }
 
@@ -436,14 +442,23 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitAssignment(@NotNull AssignmentContext ctx) {
-        Type lhs = visitAssign_lhs(ctx.assign_lhs());
-        Type rhs = visitAssign_rhs(ctx.assign_rhs());
-        if (lhs == null || rhs == null) {
+        Assign_lhsContext lhs = ctx.assign_lhs();
+        Assign_rhsContext rhs = ctx.assign_rhs();
+        Type lhsType = visitAssign_lhs(ctx.assign_lhs());
+        Type rhsType = visitAssign_rhs(ctx.assign_rhs());
+        if (lhsType == null) {
+            addSemanticError(ctx, "Variable '" + lhs.getText() +
+                    "' is not declared in this scope");
             return null;
         }
-        if (!lhs.equalsType(rhs)) {
-            addSemanticError(ctx, "Left hand side '" + lhs +
-                    "' does not match with right hand side '" + rhs + "'");
+        if (rhsType == null) {
+            addSemanticError(ctx, "Variable '" + rhs.getText() +
+                    "' is not declared in this scope");
+            return null;
+        }
+        if (!lhsType.equalsType(rhsType)) {
+            addSemanticError(ctx, "Left hand side '" + lhsType +
+                    "' does not match with right hand side '" + rhsType + "'");
         }
         return null;
     }
