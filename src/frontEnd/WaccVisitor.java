@@ -561,10 +561,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             head.addFunction(funName, funType, paramList);
         }
 
-        Type exitType = visitChildren(ctx);
-        if (exitType != null && exitType != AllTypes.ANY) {
-            addSemanticError(ctx, "Cannot return from the main function");
-        }
+        visitChildren(ctx);
         if (listener.hasSyntaxErrors()) {
             printErrors(listener.getSyntaxErrors(), SYNTAX_ERROR_CODE);
         }
@@ -579,11 +576,19 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         StatContext stat1 = ctx.stat(0);
         StatContext stat2 = ctx.stat(1);
         Type endType = visit(stat1);
+        // Checks if there is any rubbish after the returning statement from a non-main function
         if (endType != null && stat2 != null && curr != head) {
             listener.addSyntaxError(ctx, "Function has not ended with a return or exit statement");
             return endType;
         }
-        return visit(stat2);
+        // Checks if an return expression has been called in the main function
+        if (endType != null && endType != AllTypes.ANY && curr == head) {
+            addSemanticError(ctx, "Cannot return from the main function");
+        }
+        if (stat2 != null) {
+            return visit(stat2);
+        }
+        return null;
     }
 
     @Override
