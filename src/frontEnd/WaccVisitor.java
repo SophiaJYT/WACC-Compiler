@@ -5,6 +5,8 @@ import antlr.WaccParser.*;
 import antlr.WaccParserBaseVisitor;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.misc.NotNull;
+import org.antlr.v4.runtime.tree.ParseTree;
+import org.antlr.v4.runtime.tree.RuleNode;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -560,6 +562,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         }
 
         Type exitType = visitChildren(ctx);
+        System.out.println(exitType);
         if (exitType != null && exitType != AllTypes.ANY) {
             addSemanticError(ctx, "Cannot return from the main function");
         }
@@ -664,7 +667,11 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             addSemanticError(ctx, "While condition must evaluate to a bool value");
         }
         curr = new SymbolTable<>(curr);
-        visitChildren(ctx.stat());
+        StatContext stat = ctx.stat();
+        if (stat == null) {
+            return null;
+        }
+        visitChildren(stat);
         curr = curr.encSymbolTable;
         return null;
     }
@@ -677,6 +684,20 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitComment(@NotNull CommentContext ctx) {
         return null;
+    }
+
+    @Override
+    public Type visitChildren(@NotNull RuleNode node) {
+        Type result = null;
+        int n = node.getChildCount();
+        for (int i = 0; i < n; i++) {
+            ParseTree c = node.getChild(i);
+            Type childResult = c.accept(this);
+            if (childResult != null) {
+                result = childResult;
+            }
+        }
+        return result;
     }
 
 }
