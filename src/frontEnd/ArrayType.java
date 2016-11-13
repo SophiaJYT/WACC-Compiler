@@ -1,6 +1,6 @@
 package frontEnd;
 
-public class ArrayType implements Type{
+public class ArrayType implements Type {
 
     private Type element;
 

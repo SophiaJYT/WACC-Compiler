@@ -67,8 +67,29 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitArray_elem(@NotNull Array_elemContext ctx) {
-        Type type = st.lookUpAll(ctx.getText());
+        String var = ctx.ident().getText();
+        for (ExprContext e : ctx.expr()) {
+            if (e.int_liter() == null) {
+                Type arrayIndex = visitExpr(e);
+                if (arrayIndex == null) {
+                    // It must be an identifier as a result.
+                    arrayIndex = st.lookUpAll(e.ident().getText());
+                }
+                if (!arrayIndex.equalsType(AllTypes.INT)) {
+                    addSemanticError(ctx, "Must use an integer to access array element");
+                    return null;
+                }
+                // Potentially throw array out of bounds exception here.
+
+                // Just need to check the type, therefore 0 index will satisfy this.
+            }
+            var = var + "[0]";
+        }
+        Type type = st.lookUpAll(var);
         if (type == null) {
+            if (st.lookUpAll(ctx.ident().getText()).equalsType(AllTypes.STRING)) {
+                return AllTypes.CHAR;
+            }
             addSemanticError(ctx, "Array element doesn't exist");
             return null;
         }
@@ -184,14 +205,27 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         }
         type = visitType(ctx.type());
         st.add(var, type);
-        Type rhs = visitAssign_rhs(ctx.assign_rhs());
-        if (rhs == AllTypes.ANY) {
+        Type actual = visitAssign_rhs(ctx.assign_rhs());
+        if (type instanceof ArrayType) {
+            if (!actual.equalsType(type)) {
+                addSemanticError(ctx, "Right hand side does not match expected type '" + type + "'");
+                return null;
+            }
+            Type lhsElemType = ((ArrayType) type).getElement();
+            Type rhsElemType = ((ArrayType) actual).getElement();
+            if (!lhsElemType.equalsType(rhsElemType)) {
+                addSemanticError(ctx, "Type " + lhsElemType + " does not match type " + rhsElemType);
+                return null;
+            }
+            st.add(var + "[0]", rhsElemType);
+        }
+        if (actual == AllTypes.ANY) {
             return type;
         }
-        if (!type.equalsType(rhs)) {
-            addSemanticError(ctx, "Type " + type + " does not match type " + rhs);
+        if (!type.equalsType(actual)) {
+            addSemanticError(ctx, "Type " + type + " does not match type " + actual);
         }
-        return visitChildren(ctx);
+        return null;
     }
 
     @Override
@@ -393,7 +427,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         ExprContext exp = ctx.expr(0);
         Type t = visitExpr(exp);
         for (ExprContext e : ctx.expr()) {
-            if (t != visitExpr(e)) {
+            if (!t.equalsType(visitExpr(e))) {
                 addSemanticError(ctx, "Array values must all be of the same type");
             }
         }
