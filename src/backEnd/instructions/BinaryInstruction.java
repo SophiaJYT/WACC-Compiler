@@ -16,7 +16,7 @@ public class BinaryInstruction implements Instruction{
 
     @Override
     public String toString(){
-        return "" + type + register1 + ", " + register2;
+        return type + " " + register1 + ", " + register2;
     }
 
 }
