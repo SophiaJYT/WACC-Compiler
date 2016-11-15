@@ -6,6 +6,7 @@ temp="temp"
 stdout="stdout"
 
 > $result
+make
 for file in $(find $1 -name "*.wacc")
 do
   echo "Testing $file" > $testfile

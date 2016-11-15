@@ -1,7 +1,7 @@
-package frontEnd;
-
 import antlr.WaccLexer;
 import antlr.WaccParser;
+import frontEnd.SyntaxErrorListener;
+import frontEnd.WaccVisitor;
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;

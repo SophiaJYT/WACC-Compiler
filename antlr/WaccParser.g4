@@ -4,89 +4,89 @@ options {
   tokenVocab=WaccLexer;
 }
 
-prog: BEGIN (func)* stat END EOF ;
+prog: BEGIN (funcDecl)* stat END EOF ;
 
-func: type ident OPEN_PARENTHESES (param_list)? CLOSE_PARENTHESES IS stat END ;
+funcDecl: type ident OPEN_PARENTHESES (paramList)? CLOSE_PARENTHESES IS stat END ;
 
-param_list: param (COMMA param)* ;
+paramList: param (COMMA param)* ;
 
 param: type ident ;
 
 stat: SKIP                                                              #skip
-| type ident ASSIGN assign_rhs                                          #initialization
-| assign_lhs ASSIGN assign_rhs                                          #assignment
-| READ assign_lhs                                                       #read_lhs
-| FREE expr                                                             #freeExpr
-| RETURN expr                                                           #returnExpr
-| EXIT expr                                                             #exitExpr
-| PRINT expr                                                            #printExpr
-| PRINTLN expr                                                          #printlnExpr
-| IF expr THEN stat ELSE stat FI                                        #ifExpr
-| WHILE expr DO stat DONE                                               #whileExpr
+| type ident ASSIGN assignRhs                                           #varInit
+| assignLhs ASSIGN assignRhs                                            #varAssign
+| READ assignLhs                                                        #readStat
+| FREE expr                                                             #freeStat
+| RETURN expr                                                           #returnStat
+| EXIT expr                                                             #exitStat
+| PRINT expr                                                            #printStat
+| PRINTLN expr                                                          #printlnStat
+| IF expr THEN stat ELSE stat FI                                        #ifStat
+| WHILE expr DO stat DONE                                               #whileStat
 | BEGIN stat END                                                        #beginEnd
-| stat SEMI_COLON stat                                                  #semicolonStat;
+| stat SEMI_COLON stat                                                  #statSequence;
 
-assign_lhs: ident
-| array_elem
-| pair_elem ;
+assignLhs: ident
+| arrayElem
+| pairElem ;
 
-assign_rhs: expr
-| array_liter
-| pairParantheses
-| pair_elem
-| callParantheses ;
+assignRhs: expr
+| arrayLiter
+| newPair
+| pairElem
+| callFunc ;
 
-pairParantheses: NEWPAIR OPEN_PARENTHESES expr COMMA expr CLOSE_PARENTHESES ;
+newPair: NEWPAIR OPEN_PARENTHESES expr COMMA expr CLOSE_PARENTHESES ;
 
-callParantheses: CALL ident OPEN_PARENTHESES (arg_list)? CLOSE_PARENTHESES ;
+callFunc: CALL ident OPEN_PARENTHESES (argList)? CLOSE_PARENTHESES ;
 
-arg_list: expr (COMMA expr)* ;
+argList: expr (COMMA expr)* ;
 
-pair_elem: FIRST expr
+pairElem: FIRST expr
 | SECOND expr ;
 
-type: base_type
+type: baseType
 | type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET
-| pair_type ;
+| pairType ;
 
-base_type: INT
+baseType: INT
 | BOOL
 | CHAR
 | STRING ;
 
-array_type: type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET ;
+arrayType: type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET ;
 
-pair_type: PAIR OPEN_PARENTHESES pair_elem_type COMMA pair_elem_type
+pairType: PAIR OPEN_PARENTHESES pairElemType COMMA pairElemType
            CLOSE_PARENTHESES ;
 
-pair_elem_type: base_type
-| array_type
+pairElemType: baseType
+| arrayType
 | PAIR ;
 
-expr: int_liter
-| bool_liter
-| char_liter
-| str_liter
-| pair_liter
+expr: intLiter
+| boolLiter
+| charLiter
+| strLiter
+| pairLiter
 | ident
-| array_elem
-| expr binary_oper expr
-| expr bool_binary_oper expr
-| unary_oper expr
+| arrayElem
+| expr binaryOper expr
+| expr boolBinaryOper expr
+| unaryOper expr
 | bracketExpr ;
 
 bracketExpr: OPEN_PARENTHESES expr CLOSE_PARENTHESES ;
 
-unary_oper: NOT
+unaryOper: NOT
 | MINUS
 | LENGTH
 | ORD
 | CHR ;
 
-bool_binary_oper: AND
+boolBinaryOper: AND
 | OR ;
 
-binary_oper: MULTIPLY
+binaryOper: MULTIPLY
 | DIVIDE
 | MOD
 | PLUS
@@ -100,19 +100,17 @@ binary_oper: MULTIPLY
 
 ident: IDENTIFIER ;
 
-array_elem: ident (OPEN_SQUARE_BRACKET expr CLOSE_SQUARE_BRACKET)+ ;
+arrayElem: ident (OPEN_SQUARE_BRACKET expr CLOSE_SQUARE_BRACKET)+ ;
 
-int_liter: (PLUS | MINUS)? INTEGER ;
+intLiter: (PLUS | MINUS)? INTEGER ;
 
-bool_liter: TRUE
+boolLiter: TRUE
 | FALSE ;
 
-char_liter: CHARACTER_LITERAL ;
+charLiter: CHARACTER_LITERAL ;
 
-str_liter: STRING_LITERAL ;
+strLiter: STRING_LITERAL ;
 
-array_liter: OPEN_SQUARE_BRACKET (expr (COMMA expr)*)? CLOSE_SQUARE_BRACKET ;
+arrayLiter: OPEN_SQUARE_BRACKET (expr (COMMA expr)*)? CLOSE_SQUARE_BRACKET ;
 
-pair_liter: NULL;
-
-comment: COMMENT;
+pairLiter: NULL;

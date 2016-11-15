@@ -12,7 +12,7 @@ end
 
 filepath = ARGV[0]
 antlr_jar = "lib/antlr-4.4-complete.jar"
-program = "frontEnd.Main"
+program = "Main"
 
 if !File.file?(filepath)
   puts "Could not find file #{filepath}"
