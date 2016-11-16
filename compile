@@ -1,27 +1,49 @@
 #!/usr/bin/ruby
-# Ruby front-end for your compiler.
-# You are free to change the language used for this script,
-# but do *not* change its name.
+# Ruby front-end for the compiler.
 
-accepted_file_format = [".wacc"]
+##---------------------------------------------------------------------------##
 
+# Check that the number of arguments is correct
 if ARGV.length != 1
   puts "Usage: ./compile <wacc-program>"
   exit
 end
 
+# Store argument name as the file path to the wacc file
 filepath = ARGV[0]
-antlr_jar = "lib/antlr-4.4-complete.jar"
-program = "Main"
 
+# Check if the file path exists
 if !File.file?(filepath)
   puts "Could not find file #{filepath}"
   exit
 end
 
-if !accepted_file_format.include? File.extname(filepath)
+# Check if the file is a WACC file
+accepted_file_format = ".wacc"
+
+if accepted_file_format != File.extname(filepath)
   puts "File #{filepath} is not a WACC file"
   exit
 end
 
-exec "java -cp #{antlr_jar}:bin:. #{program} < #{filepath}"
+# Create variables for the java command below to use
+antlr_jar = "lib/antlr-4.4-complete.jar"
+output_dir = "bin"
+program = "Main"
+
+# Store standard output from running the Java program
+gen_code = `java -cp #{antlr_jar}:#{output_dir}:. #{program} < #{filepath}`
+
+# Record the value of the exitcode
+status = $?.exitstatus
+
+# Exit program if exit code is not equal to zero
+if status != 0
+  exit(status)
+end
+
+# Get name of the file and create the equivalent assembly file
+filename = File.basename(filepath, accepted_file_format)
+File.open("#{filename}.s", "w") do |f|
+  f.write(gen_code)
+end
