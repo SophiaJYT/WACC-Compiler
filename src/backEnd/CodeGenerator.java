@@ -11,221 +11,224 @@ import org.antlr.v4.runtime.tree.RuleNode;
 
 import java.util.List;
 
-public class CodeGenerator extends WaccParserBaseVisitor<Instruction> {
+public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     private SymbolTable<Identifier> head;
     private SymbolTable<Identifier> curr;
-    List<Instruction> generatedCode;
+    // private List<Instruction> generatedCode;
 
     @Override
-    public Instruction visitReadStat(@NotNull ReadStatContext ctx) {
+    public Identifier visitProg(@NotNull ProgContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitArgList(@NotNull ArgListContext ctx) {
+    public Identifier visitFuncDecl(@NotNull FuncDeclContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitArrayLiter(@NotNull ArrayLiterContext ctx) {
+    public Identifier visitParamList(@NotNull ParamListContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitArrayElem(@NotNull ArrayElemContext ctx) {
+    public Identifier visitParam(@NotNull ParamContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitAssignRhs(@NotNull AssignRhsContext ctx) {
-        return null;
-    }
-
-    @Override
-    public Instruction visitPrintStat(@NotNull PrintStatContext ctx) {
-        return null;
-    }
-
-    @Override
-    public Instruction visitAssignLhs(@NotNull AssignLhsContext ctx) {
-        return null;
-    }
-
-    @Override
-    public Instruction visitUnaryOper(@NotNull UnaryOperContext ctx) {
-        return null;
-    }
-
-    @Override
-    public Instruction visitIdent(@NotNull IdentContext ctx) {
-        return null;
-    }
-
-    @Override
-    public Instruction visitSkip(@NotNull SkipContext ctx) {
+    public Identifier visitSkip(@NotNull SkipContext ctx) {
         // Nothing to do for skip.
         return null;
     }
 
     @Override
-    public Instruction visitPrintlnStat(@NotNull PrintlnStatContext ctx) {
+    public Identifier visitVarInit(@NotNull VarInitContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitType(@NotNull TypeContext ctx) {
+    public Identifier visitVarAssign(@NotNull VarAssignContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitIntLiter(@NotNull IntLiterContext ctx) {
+    public Identifier visitReadStat(@NotNull ReadStatContext ctx) {
+        // Need to branch to a "BL read" statement, depending on the type of ctx.assignLhs()
         return null;
     }
 
     @Override
-    public Instruction visitBaseType(@NotNull BaseTypeContext ctx) {
+    public Identifier visitFreeStat(@NotNull FreeStatContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitPairLiter(@NotNull PairLiterContext ctx) {
+    public Identifier visitReturnStat(@NotNull ReturnStatContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitParam(@NotNull ParamContext ctx) {
+    public Identifier visitExitStat(@NotNull ExitStatContext ctx) {
+        // Return branch instruction with "exit" and the int value of ctx.expr()
         return null;
     }
 
     @Override
-    public Instruction visitReturnStat(@NotNull ReturnStatContext ctx) {
+    public Identifier visitPrintStat(@NotNull PrintStatContext ctx) {
+        // Need to branch to a "BL print" statement, depending on the type of ctx.expr()
         return null;
     }
 
     @Override
-    public Instruction visitCharLiter(@NotNull CharLiterContext ctx) {
+    public Identifier visitPrintlnStat(@NotNull PrintlnStatContext ctx) {
+        // Same as visitPrintStat, except we have to append '\n' to the string
         return null;
     }
 
     @Override
-    public Instruction visitVarInit(@NotNull VarInitContext ctx) {
+    public Identifier visitIfStat(@NotNull IfStatContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitExpr(@NotNull ExprContext ctx) {
+    public Identifier visitWhileStat(@NotNull WhileStatContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitPairElem(@NotNull PairElemContext ctx) {
+    public Identifier visitBeginEnd(@NotNull BeginEndContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitWhileStat(@NotNull WhileStatContext ctx) {
+    public Identifier visitStatSequence(@NotNull StatSequenceContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitIfStat(@NotNull IfStatContext ctx) {
+    public Identifier visitAssignLhs(@NotNull AssignLhsContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitArrayType(@NotNull ArrayTypeContext ctx) {
+    public Identifier visitAssignRhs(@NotNull AssignRhsContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitNewPair(@NotNull NewPairContext ctx) {
+    public Identifier visitNewPair(@NotNull NewPairContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitBracketExpr(@NotNull BracketExprContext ctx) {
+    public Identifier visitCallFunc(@NotNull CallFuncContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitExitStat(@NotNull ExitStatContext ctx) {
-        //return branch instruction with "exit"
+    public Identifier visitArgList(@NotNull ArgListContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitBinaryOper(@NotNull BinaryOperContext ctx) {
+    public Identifier visitPairElem(@NotNull PairElemContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitCallFunc(@NotNull CallFuncContext ctx) {
+    public Identifier visitType(@NotNull TypeContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitProg(@NotNull ProgContext ctx) {
+    public Identifier visitBaseType(@NotNull BaseTypeContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitVarAssign(@NotNull VarAssignContext ctx) {
+    public Identifier visitArrayType(@NotNull ArrayTypeContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitFreeStat(@NotNull FreeStatContext ctx) {
+    public Identifier visitPairType(@NotNull PairTypeContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitBoolLiter(@NotNull BoolLiterContext ctx) {
+    public Identifier visitPairElemType(@NotNull PairElemTypeContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitPairType(@NotNull PairTypeContext ctx) {
+    public Identifier visitExpr(@NotNull ExprContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitPairElemType(@NotNull PairElemTypeContext ctx) {
+    public Identifier visitBracketExpr(@NotNull BracketExprContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitStrLiter(@NotNull StrLiterContext ctx) {
+    public Identifier visitUnaryOper(@NotNull UnaryOperContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitBeginEnd(@NotNull BeginEndContext ctx) {
+    public Identifier visitBoolBinaryOper(@NotNull BoolBinaryOperContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitFuncDecl(@NotNull FuncDeclContext ctx) {
+    public Identifier visitBinaryOper(@NotNull BinaryOperContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitBoolBinaryOper(@NotNull BoolBinaryOperContext ctx) {
+    public Identifier visitIdent(@NotNull IdentContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitParamList(@NotNull ParamListContext ctx) {
+    public Identifier visitArrayElem(@NotNull ArrayElemContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitStatSequence(@NotNull StatSequenceContext ctx) {
+    public Identifier visitIntLiter(@NotNull IntLiterContext ctx) {
         return null;
     }
 
     @Override
-    public Instruction visitChildren(@NotNull RuleNode ruleNode) {
+    public Identifier visitBoolLiter(@NotNull BoolLiterContext ctx) {
+        return null;
+    }
+
+    @Override
+    public Identifier visitCharLiter(@NotNull CharLiterContext ctx) {
+        return null;
+    }
+
+    @Override
+    public Identifier visitStrLiter(@NotNull StrLiterContext ctx) {
+        return null;
+    }
+
+    @Override
+    public Identifier visitArrayLiter(@NotNull ArrayLiterContext ctx) {
+        return null;
+    }
+
+    @Override
+    public Identifier visitPairLiter(@NotNull PairLiterContext ctx) {
+        return null;
+    }
+
+    @Override
+    public Identifier visitChildren(@NotNull RuleNode ruleNode) {
         return null;
     }
 
