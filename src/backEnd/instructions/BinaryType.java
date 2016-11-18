@@ -1,5 +1,5 @@
 package backEnd.instructions;
 
-public enum BinaryInstructionType {
+public enum BinaryType {
     ADD, SUB, MUL, AND, ORR, EOR, RSB, MOV;
 }
