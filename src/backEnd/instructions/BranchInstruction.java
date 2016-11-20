@@ -6,7 +6,13 @@ public class BranchInstruction implements Instruction {
 
     public BranchInstruction(BranchType type, String label) {
         this.type = type;
+        checkLabel(label);
         this.label = label;
+    }
+
+    //TO-DO: checks if label exists
+    private void checkLabel(String label) {
+
     }
 
     @Override
