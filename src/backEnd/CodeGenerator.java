@@ -3,7 +3,7 @@ package backEnd;
 
 import antlr.WaccParser.*;
 import antlr.WaccParserBaseVisitor;
-import backEnd.instructions.Instruction;
+import backEnd.instructions.*;
 import frontEnd.Identifier;
 import frontEnd.SymbolTable;
 import org.antlr.v4.runtime.misc.NotNull;
@@ -19,6 +19,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitProg(@NotNull ProgContext ctx) {
+        System.out.println("PUSH {lr}");
+        System.out.println("POP {pc}");
+        System.out.println(".ltorg");
         return null;
     }
 
@@ -72,18 +75,25 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     @Override
     public Identifier visitExitStat(@NotNull ExitStatContext ctx) {
         // Return branch instruction with "exit" and the int value of ctx.expr()
+
         return null;
     }
 
     @Override
     public Identifier visitPrintStat(@NotNull PrintStatContext ctx) {
         // Need to branch to a "BL print" statement, depending on the type of ctx.expr()
+        // Instruction printInstr = new BranchInstruction(BranchType.BL,
+        //        "print" + visitExpr(ctx.expr()).getName());
+
         return null;
     }
 
     @Override
     public Identifier visitPrintlnStat(@NotNull PrintlnStatContext ctx) {
         // Same as visitPrintStat, except we have to append '\n' to the string
+        // Instruction printInstr = new BranchInstruction(BranchType.BL,
+        //        "print" + visitExpr(ctx.expr().getName()));
+        // Need to
         return null;
     }
 
