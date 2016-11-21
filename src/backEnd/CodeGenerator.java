@@ -3,34 +3,65 @@ package backEnd;
 
 import antlr.WaccParser.*;
 import antlr.WaccParserBaseVisitor;
-import backEnd.instructions.Instruction;
+import backEnd.instructions.*;
 import frontEnd.Identifier;
 import frontEnd.SymbolTable;
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.misc.NotNull;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.RuleNode;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.Enumeration;
+import java.util.*;
+
+import static backEnd.instructions.BranchType.*;
+import static backEnd.instructions.DataProcessingType.*;
+import static backEnd.instructions.SingleDataTransferType.*;
+import static backEnd.instructions.MultiplyInstructionType.*;
+import static backEnd.instructions.StackType.POP;
+import static backEnd.instructions.StackType.PUSH;
 
 public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     private SymbolTable<Integer> stackSpace;
     private SymbolTable<Identifier> head;
     private SymbolTable<Identifier> curr;
-
     private Deque<Instruction> instrs;
+    private int labelIndex;
 
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
+
+    private Register r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, lr, pc;
 
     public CodeGenerator() {
         head = new SymbolTable<>();
         curr = head;
         stackSpace = new SymbolTable<>();
         instrs = new ArrayDeque<>();
+        initialiseRegisters();
+        labelIndex = 0;
+    }
+
+    private void initialiseRegisters() {
+        r0 = new Register(RegisterType.R0);
+        r1 = new Register(RegisterType.R1);
+        r2 = new Register(RegisterType.R2);
+        r3 = new Register(RegisterType.R3);
+        r4 = new Register(RegisterType.R4);
+        r5 = new Register(RegisterType.R5);
+        r6 = new Register(RegisterType.R6);
+        r7 = new Register(RegisterType.R7);
+        r8 = new Register(RegisterType.R8);
+        r9 = new Register(RegisterType.R9);
+        r10 = new Register(RegisterType.R10);
+        r11 = new Register(RegisterType.R11);
+        r12 = new Register(RegisterType.R12);
+        sp = new Register(RegisterType.SP);
+        lr = new Register(RegisterType.LR);
+        pc = new Register(RegisterType.PC);
     }
 
     //-------------------------UTILITY FUNCTIONS-----------------------------//
+
 
     private int getStackSize(Enumeration<Integer> e) {
         int result = 0;
@@ -40,38 +71,71 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         return result;
     }
 
+    private void addStackReserveInstrs(int totalSize) {
+        instrs.addFirst(new DataProcessingInstruction<>(SUB, sp, sp, totalSize));
+        instrs.addLast(new DataProcessingInstruction<>(ADD, sp, sp, totalSize));
+    }
+
+    private Instruction getStackReserveInstr(int totalSize) {
+        return new DataProcessingInstruction<>(SUB, sp, sp, totalSize);
+    }
+
+    private Label getNonFunctionLabel() {
+        return new Label("L", labelIndex++, false);
+    }
+
+    private void addFunction(Label label, ParserRuleContext ctx) {
+        instrs.add(label);
+        instrs.add(new StackInstruction(PUSH, lr));
+
+        generateInstrs(ctx);
+
+        if (label.getName().equals("main")) {
+            instrs.add(new SingleDataTransferInstruction<>(LDR, r0, 0));
+        }
+
+        instrs.add(new StackInstruction(POP, pc));
+        instrs.add(new Directive("ltorg"));
+    }
+
+    private void generateInstrs(ParserRuleContext ctx) {
+        // Store instructions in scope in an empty deque
+        Deque<Instruction> old = instrs;
+        instrs = new ArrayDeque<>();
+
+
+        visitChildren(ctx);
+
+        // Calculates amount of space required for the current scope
+        int stackSize = getStackSize(stackSpace.getValues());
+
+        // Add the instructions needed for storing all the local variables in the scope
+        if (stackSize > 0) {
+            addStackReserveInstrs(stackSize);
+        }
+
+        // Add the instructions and change the pointer to the original set of instructions
+        old.addAll(instrs);
+        instrs = old;
+    }
+
     //------------------------------VISIT METHODS----------------------------//
 
     @Override
     public Identifier visitProg(@NotNull ProgContext ctx) {
-        // .data
+        // .data (only created when we have a string literal or read/print(ln) statements)
         // (need to generate string literals here)
 
-        // Need to use varTypes symbolTable from frontEnd
-        // to generate total size to allocate on stack
+        instrs.add(new Directive("text"));
+        instrs.add(new Directive("global main"));
 
-        // int stackSize = getStackSize(stackSpace.getValues());
+        addFunction(new Label("main"), ctx);
 
-        // .text
-        // .global main
-        // main:
-        // (need to create indentation after each label)
-        //   PUSH {lr}
+        // Print instructions to standard output
+        for (Instruction instr : instrs) {
+            System.out.println(instr);
+        }
 
-        // stackSpace = new SymbolTable<>(stackSpace);
-
-        // visitChildren(ctx);
-
-        // Calculates amount of space required for the current scope
-        // int stackSize = getStackSize(stackSpace.getValues());
-
-        // instrs.addFirst(SUB sp, sp, #stackSize);
-        // instrs.addLast(ADD sp, sp, #stackSize);
-
-        // stackSpace = stackSpace.encSymbolTable;
-
-        //   LDR r0, =0
-        //   POP {pc}
         return null;
     }
 
@@ -148,6 +212,12 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         // LDR r4, =(int_liter)
         // MOV r0, r4
         // BL exit
+
+        // This works because we know that the expression is an int literal
+        Integer exitCode = Integer.parseInt(ctx.expr().intLiter().getText());
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, exitCode));
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+        instrs.add(new BranchInstruction(BL, new Label("exit")));
         return null;
     }
 
@@ -176,11 +246,20 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         // BEQ else_label
         // visit(ctx.stat(0));
         // B fi_label
-
         // else_label:
         // visit(ctx.stat(1));
-
         // fi_label:
+
+        Label elseLabel = getNonFunctionLabel();
+        Label fiLabel = getNonFunctionLabel();
+        visitExpr(ctx.expr());
+        instrs.add(new DataProcessingInstruction<>(CMP, r4, 0));
+        instrs.add(new BranchInstruction(BEQ, elseLabel));
+        visit(ctx.stat(0));
+        instrs.add(new BranchInstruction(B, fiLabel));
+        instrs.add(elseLabel);
+        visit(ctx.stat(1));
+        instrs.add(fiLabel);
         return null;
     }
 
@@ -193,29 +272,30 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         //   visitExpr(ctx.expr());
         //   CMP r4, #1
         //   BEQ loop_label
+
+        Label exitLabel = getNonFunctionLabel();
+        Label loopLabel = getNonFunctionLabel();
+        instrs.add(new BranchInstruction(B, exitLabel));
+        instrs.add(loopLabel);
+        visit(ctx.stat());
+        instrs.add(exitLabel);
+        visitExpr(ctx.expr());
+        instrs.add(new DataProcessingInstruction<>(CMP, r4, 1));
+        instrs.add(new BranchInstruction(BEQ, loopLabel));
         return null;
     }
 
     @Override
     public Identifier visitBeginEnd(@NotNull BeginEndContext ctx) {
-        // curr = new SymbolTable<>(curr);
-        // stackSpace = new SymbolTable<>(stackSpace);
+        // Create new scopes for current symbol table and stack space
+        curr = new SymbolTable<>(curr);
+        stackSpace = new SymbolTable<>(stackSpace);
 
-        // Deque<Instruction> old = instrs;
-        // instrs = new ArrayDeque<>();
+        generateInstrs(ctx);
 
-        // visitChildren(ctx);
-
-        // Calculates amount of space required for the current scope
-        // int stackSize = getStackSize(stackSpace.getValues());
-
-        // instrs.addFirst(SUB sp, sp, #stackSize);
-        // instrs.addLast(ADD sp, sp, #stackSize);
-        // old.addAll(instrs);
-        // instrs = old;
-
-        // stackSpace = stackSpace.encSymbolTable;
-        // curr = curr.encSymbolTable;
+        // Exit the current scope for stack space and current symbol table
+        stackSpace = stackSpace.encSymbolTable;
+        curr = curr.encSymbolTable;
         return null;
     }
 
@@ -327,13 +407,12 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         // } else {
         //     return #0;
         // }
-        return null;
+        return new Identifier("#" + (ctx.getText().equals("true") ? 1 : 0));
     }
 
     @Override
     public Identifier visitCharLiter(@NotNull CharLiterContext ctx) {
-        // return new Identifier("#" + ctx.getText());
-        return null;
+        return new Identifier("#" + ctx.getText());
     }
 
     @Override
@@ -353,7 +432,16 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitChildren(@NotNull RuleNode ruleNode) {
-        return null;
+        Identifier result = null;
+        int n = ruleNode.getChildCount();
+        for (int i = 0; i < n; i++) {
+            ParseTree c = ruleNode.getChild(i);
+            Identifier childResult = c.accept(this);
+            if (childResult != null) {
+                result = childResult;
+            }
+        }
+        return result;
     }
 
 }

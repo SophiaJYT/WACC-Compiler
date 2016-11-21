@@ -4,7 +4,7 @@ package backEnd.instructions;
 public class Label implements Instruction{
 
     private String label;
-    private Integer index = 0;
+    private Integer index;
     private boolean isFunction;
 
     public Label(String label){

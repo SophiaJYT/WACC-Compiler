@@ -3,7 +3,7 @@ package backEnd.instructions;
 import backEnd.Register;
 import backEnd.RegisterType;
 
-public class StackInstruction {
+public class StackInstruction implements Instruction {
     private StackType type;
     private Register register;
 

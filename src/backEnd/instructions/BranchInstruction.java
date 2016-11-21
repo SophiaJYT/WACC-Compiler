@@ -17,6 +17,6 @@ public class BranchInstruction implements Instruction {
 
     @Override
     public String toString(){
-        return type + " " + label;
+        return type + " " + label.getName();
     }
 }
