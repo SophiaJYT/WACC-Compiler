@@ -1,22 +1,21 @@
 package backEnd.instructions;
 
 import backEnd.Register;
-import backEnd.RegisterType;
 
-public class DataProcessingInstruction implements Instruction {
+public class DataProcessingInstruction <T> implements Instruction {
 
     private DataProcessingType type;
     private Register destination;
     private Register operand1;
-    private Operand operand2;
+    private T operand2;
 
     public DataProcessingInstruction
-            (DataProcessingType type, Register destination, Operand operand) {
+            (DataProcessingType type, Register destination, T operand) {
 
         if (type != DataProcessingType.MOV && type != DataProcessingType.CMP) {
-            throw error(type);
+            throw errorInstr(type);
         }
-
+        checkOperand(operand);
         this.type = type;
         this.destination = destination;
         this.operand2 = operand;
@@ -24,20 +23,27 @@ public class DataProcessingInstruction implements Instruction {
     }
 
     public DataProcessingInstruction
-            (DataProcessingType type, Register destination, Register register, Operand operand) {
+            (DataProcessingType type, Register destination, Register register, T operand) {
 
         if (type == DataProcessingType.MOV || type == DataProcessingType.CMP) {
-            throw error(type);
+            throw errorInstr(type);
         }
-
+        checkOperand(operand);
         this.type = type;
         this.destination = destination;
         this.operand1 = register;
         this.operand2 = operand;
     }
 
+    private void checkOperand(T operand) throws IllegalArgumentException {
+        if (!(operand instanceof Integer) && !(operand instanceof Register)) {
+            throw new  IllegalArgumentException("Instr: " + type +
+                    " Operand has to be a register or number/expression");
+        }
+    }
+
     //error method for incorrect instruction
-    private IllegalArgumentException error(DataProcessingType type) {
+    private IllegalArgumentException errorInstr(DataProcessingType type) {
         return new IllegalArgumentException("Incorrect arguments for instruction " + type);
     }
 
@@ -48,7 +54,12 @@ public class DataProcessingInstruction implements Instruction {
             strForOperand1 =  ", " + operand1;
         }
 
-        return type + " " + destination + strForOperand1 + ", " + operand2;
+        String strForOperand2 = operand2.toString();
+        if(operand2 instanceof Integer) {
+            strForOperand2 = '#' + strForOperand2;
+        }
+
+        return type + " " + destination + strForOperand1 + ", " + strForOperand2;
     }
 
 }
