@@ -1,8 +1,6 @@
 package backEnd;
 
-import backEnd.instructions.Operand;
-
-public class Register implements Operand {
+public class Register {
 
     private RegisterType register;
 
