@@ -2,16 +2,16 @@ package backEnd.instructions;
 
 public class BranchInstruction implements Instruction {
     private BranchType type;
-    private String label;
+    private Label label;
 
-    public BranchInstruction(BranchType type, String label) {
+    public BranchInstruction(BranchType type, Label label) {
         this.type = type;
         checkLabel(label);
         this.label = label;
     }
 
     //TO-DO: checks if label exists
-    private void checkLabel(String label) {
+    private void checkLabel(Label label) {
 
     }
 
