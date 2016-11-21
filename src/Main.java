@@ -1,5 +1,6 @@
 import antlr.WaccLexer;
 import antlr.WaccParser;
+import backEnd.CodeGenerator;
 import frontEnd.SyntaxErrorListener;
 import frontEnd.WaccVisitor;
 import org.antlr.v4.runtime.ANTLRInputStream;
@@ -26,6 +27,10 @@ public class Main {
         WaccVisitor visitor = new WaccVisitor(listener);
 
         visitor.visit(tree);
+
+        CodeGenerator generator = new CodeGenerator();
+
+        generator.visit(tree);
     }
 
 }
