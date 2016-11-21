@@ -1,0 +1,36 @@
+valid/sequence/basicSeq.wacc
+calling the reference compiler on valid/sequence/basicSeq.wacc
+-- Test: basicSeq.wacc
+
+-- Uploaded file: 
+---------------------------------------------------------------
+# basic sequential composition
+
+# Output:
+# #empty#
+
+# Program:
+
+begin 
+  skip;
+  skip 
+end
+---------------------------------------------------------------
+
+-- Compiler Output:
+-- Compiling...
+-- Printing Assembly...
+basicSeq.s contents are:
+===========================================================
+0	.text
+1	
+2	.global main
+3	main:
+4		PUSH {lr}
+5		LDR r0, =0
+6		POP {pc}
+7		.ltorg
+8	
+===========================================================
+-- Finished
+

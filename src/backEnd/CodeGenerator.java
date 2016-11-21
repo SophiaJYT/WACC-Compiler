@@ -19,15 +19,23 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitProg(@NotNull ProgContext ctx) {
-        // PUSH {lr}
-        // visitChildren(ctx);
-        // LDR r0, =0
-        // POP {pc}
+        // .data
+        // (need to generate string literals here)
+
+        // .text
+        // .global main
+        // main:
+        // (need to create indentation after each label)
+        //   PUSH {lr}
+        //   visitChildren(ctx);
+        //   LDR r0, =0
+        //   POP {pc}
         return null;
     }
 
     @Override
     public Identifier visitFuncDecl(@NotNull FuncDeclContext ctx) {
+        // Have to add .ltorg at the end of each function
         return null;
     }
 
@@ -116,6 +124,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitStatSequence(@NotNull StatSequenceContext ctx) {
+        visitChildren(ctx);
         return null;
     }
 

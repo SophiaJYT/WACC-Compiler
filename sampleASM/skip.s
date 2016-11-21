@@ -1,0 +1,33 @@
+valid/basic/skip/skip.wacc
+calling the reference compiler on valid/basic/skip/skip.wacc
+-- Test: skip.wacc
+
+-- Uploaded file: 
+---------------------------------------------------------------
+# simple skip program
+
+# Output:
+# #empty#
+
+# Program:
+
+begin skip end
+---------------------------------------------------------------
+
+-- Compiler Output:
+-- Compiling...
+-- Printing Assembly...
+skip.s contents are:
+===========================================================
+0	.text
+1	
+2	.global main
+3	main:
+4		PUSH {lr}
+5		LDR r0, =0
+6		POP {pc}
+7		.ltorg
+8	
+===========================================================
+-- Finished
+
