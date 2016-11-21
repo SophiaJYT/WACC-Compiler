@@ -19,9 +19,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitProg(@NotNull ProgContext ctx) {
-        System.out.println("PUSH {lr}");
-        System.out.println("POP {pc}");
-        System.out.println(".ltorg");
+        // PUSH {lr}
+        // visitChildren(ctx);
+        // LDR r0, =0
+        // POP {pc}
         return null;
     }
 
@@ -74,8 +75,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitExitStat(@NotNull ExitStatContext ctx) {
-        // Return branch instruction with "exit" and the int value of ctx.expr()
-
+        // LDR r4, =(int_liter)
+        // MOV r0, r4
+        // BL exit
         return null;
     }
 
