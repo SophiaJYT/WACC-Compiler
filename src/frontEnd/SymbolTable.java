@@ -4,7 +4,7 @@ import java.util.*;
 
 public class SymbolTable<T> {
 
-    SymbolTable<T> encSymbolTable;
+    public SymbolTable<T> encSymbolTable;
     Dictionary<String, T> dictionary;
     Dictionary<String, T[]> funcParams;
     Map<String, SymbolTable<T>> funcTables;
@@ -62,6 +62,10 @@ public class SymbolTable<T> {
             s = s.encSymbolTable;
         }
         return null;
+    }
+
+    public Enumeration<T> getValues() {
+        return dictionary.elements();
     }
 
     @Override
