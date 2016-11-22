@@ -20,11 +20,11 @@ import static backEnd.instructions.StackType.*;
 
 public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
-    private SymbolTable<Integer> stackSpace;
+    private List<Integer> stackSpace;
     private SymbolTable<Identifier> head;
     private SymbolTable<Identifier> curr;
     private Deque<Instruction> instrs;
-    private int labelIndex;
+    private int labelIndex, currStackPos;
 
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
 
@@ -33,7 +33,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     public CodeGenerator() {
         head = new SymbolTable<>();
         curr = head;
-        stackSpace = new SymbolTable<>();
+        stackSpace = new ArrayList<>();
         instrs = new ArrayDeque<>();
         initialiseRegisters();
         labelIndex = 0;
@@ -61,10 +61,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     //-------------------------UTILITY FUNCTIONS-----------------------------//
 
 
-    private int getStackSize(Enumeration<Integer> e) {
+    private int getStackSize(List<Integer> stackSpace) {
         int result = 0;
-        while (e.hasMoreElements()) {
-            result += e.nextElement();
+        for (int space : stackSpace) {
+            result += space;
         }
         return result;
     }
@@ -101,7 +101,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         visit(ctx);
 
         // Calculates amount of space required for the current scope
-        int stackSize = getStackSize(stackSpace.getValues());
+        int stackSize = getStackSize(stackSpace);
 
         // Add the instructions needed for storing all the local variables in the scope
         if (stackSize > 0) {
@@ -289,12 +289,13 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     public Identifier visitBeginEnd(@NotNull BeginEndContext ctx) {
         // Create new scopes for current symbol table and stack space
         curr = new SymbolTable<>(curr);
-        stackSpace = new SymbolTable<>(stackSpace);
+        List<Integer> old = stackSpace;
+        stackSpace = new ArrayList<>();
 
         generateInstrs(ctx);
 
         // Exit the current scope for stack space and current symbol table
-        stackSpace = stackSpace.encSymbolTable;
+        stackSpace = old;
         curr = curr.encSymbolTable;
         return null;
     }
@@ -312,6 +313,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitAssignRhs(@NotNull AssignRhsContext ctx) {
+        // visitChildren(ctx);
         return null;
     }
 
@@ -362,7 +364,16 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitExpr(@NotNull ExprContext ctx) {
-        return null;
+        if (ctx.binaryOper() != null) {
+            return visitBinaryOper(ctx.binaryOper());
+        }
+        if (ctx.boolBinaryOper() != null) {
+            return visitBoolBinaryOper(ctx.boolBinaryOper());
+        }
+        if (ctx.unaryOper() != null) {
+            return visitUnaryOper(ctx.unaryOper());
+        }
+        return visitChildren(ctx);
     }
 
     @Override
@@ -372,16 +383,55 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitUnaryOper(@NotNull UnaryOperContext ctx) {
+        ExprContext e = (ExprContext) ctx.getParent();
+        switch (ctx.getText()) {
+            case "!":
+                break;
+            case "-":
+                break;
+            case "len":
+                break;
+            case "ord":
+                break;
+            case "chr":
+                break;
+        }
         return null;
     }
 
     @Override
     public Identifier visitBoolBinaryOper(@NotNull BoolBinaryOperContext ctx) {
+        ExprContext e = (ExprContext) ctx.getParent();
         return null;
     }
 
     @Override
     public Identifier visitBinaryOper(@NotNull BinaryOperContext ctx) {
+        ExprContext e = (ExprContext) ctx.getParent();
+        switch (ctx.getText()) {
+            case "*":
+                break;
+            case "/":
+                break;
+            case "%":
+                break;
+            case "+":
+                break;
+            case "-":
+                break;
+            case ">":
+                break;
+            case ">=":
+                break;
+            case "<":
+                break;
+            case "<=":
+                break;
+            case "==":
+                break;
+            case "!=":
+                break;
+        }
         return null;
     }
 
@@ -397,26 +447,28 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitIntLiter(@NotNull IntLiterContext ctx) {
-        return null;
+        stackSpace.add(INT_SIZE);
+        int intLiter = Integer.parseInt(ctx.getText());
+        return new Identifier("" + intLiter);
     }
 
     @Override
     public Identifier visitBoolLiter(@NotNull BoolLiterContext ctx) {
-        // if (ctx.getText().equals("true")) {
-        //     return #1;
-        // } else {
-        //     return #0;
-        // }
-        return new Identifier("#" + (ctx.getText().equals("true") ? 1 : 0));
+        stackSpace.add(BOOL_SIZE);
+        int boolLiter = ctx.getText().equals("true") ? 1 : 0;
+        return new Identifier("" + boolLiter);
     }
 
     @Override
     public Identifier visitCharLiter(@NotNull CharLiterContext ctx) {
-        return new Identifier("#" + ctx.getText());
+        stackSpace.add(CHAR_SIZE);
+        char charLiter = ctx.getText().charAt(1);
+        return new Identifier("" + charLiter);
     }
 
     @Override
     public Identifier visitStrLiter(@NotNull StrLiterContext ctx) {
+        stackSpace.add(STRING_SIZE);
         return null;
     }
 
