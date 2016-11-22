@@ -14,9 +14,10 @@ public class Label implements Instruction{
     public Label(String label, Integer index, boolean isFunction){
         if (!isFunction) {
             this.index = index;
+            this.label = label;
         }
-        this.label = label;
-        this.isFunction = isFunction;
+        this.label = "f_" + label;
+        this.isFunction = true;
     }
 
     public int getIndex(){

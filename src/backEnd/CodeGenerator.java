@@ -16,9 +16,7 @@ import java.util.*;
 import static backEnd.instructions.BranchType.*;
 import static backEnd.instructions.DataProcessingType.*;
 import static backEnd.instructions.SingleDataTransferType.*;
-import static backEnd.instructions.MultiplyInstructionType.*;
-import static backEnd.instructions.StackType.POP;
-import static backEnd.instructions.StackType.PUSH;
+import static backEnd.instructions.StackType.*;
 
 public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
@@ -76,15 +74,11 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         instrs.addLast(new DataProcessingInstruction<>(ADD, sp, sp, totalSize));
     }
 
-    private Instruction getStackReserveInstr(int totalSize) {
-        return new DataProcessingInstruction<>(SUB, sp, sp, totalSize);
-    }
-
     private Label getNonFunctionLabel() {
         return new Label("L", labelIndex++, false);
     }
 
-    private void addFunction(Label label, ParserRuleContext ctx) {
+    private void visitFunction(Label label, ParserRuleContext ctx) {
         instrs.add(label);
         instrs.add(new StackInstruction(PUSH, lr));
 
@@ -104,7 +98,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         instrs = new ArrayDeque<>();
 
 
-        visitChildren(ctx);
+        visit(ctx);
 
         // Calculates amount of space required for the current scope
         int stackSize = getStackSize(stackSpace.getValues());
@@ -129,7 +123,11 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         instrs.add(new Directive("text"));
         instrs.add(new Directive("global main"));
 
-        addFunction(new Label("main"), ctx);
+        for (FuncDeclContext func : ctx.funcDecl()) {
+            visitFuncDecl(func);
+        }
+
+        visitFunction(new Label("main"), ctx.stat());
 
         // Print instructions to standard output
         for (Instruction instr : instrs) {
@@ -142,6 +140,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     @Override
     public Identifier visitFuncDecl(@NotNull FuncDeclContext ctx) {
         // Have to add .ltorg at the end of each function (INCLUDING MAIN)
+        String funName = ctx.ident().getText();
+        visitFunction(new Label(funName, null, true), ctx.stat());
         return null;
     }
 
@@ -214,7 +214,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         // BL exit
 
         // This works because we know that the expression is an int literal
-        Integer exitCode = Integer.parseInt(ctx.expr().intLiter().getText());
+        Integer exitCode = Integer.parseInt(ctx.expr().getText());
         instrs.add(new SingleDataTransferInstruction<>(LDR, r4, exitCode));
         instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
         instrs.add(new BranchInstruction(BL, new Label("exit")));
