@@ -139,7 +139,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitFuncDecl(@NotNull FuncDeclContext ctx) {
-        // Have to add .ltorg at the end of each function (INCLUDING MAIN)
+        // Need to change to function symbol table when visiting the function
         String funName = ctx.ident().getText();
         visitFunction(new Label(funName, null, true), ctx.stat());
         return null;
@@ -339,11 +339,30 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitType(@NotNull TypeContext ctx) {
+        if (ctx.type() != null) {
+            // Need to deal with array type somehow.
+            return null;
+        }
+        visitChildren(ctx);
         return null;
     }
 
     @Override
     public Identifier visitBaseType(@NotNull BaseTypeContext ctx) {
+        switch (ctx.getText()) {
+            case "int":
+                stackSpace.add(INT_SIZE);
+                break;
+            case "bool":
+                stackSpace.add(BOOL_SIZE);
+                break;
+            case "char":
+                stackSpace.add(CHAR_SIZE);
+                break;
+            case "string":
+                stackSpace.add(STRING_SIZE);
+                break;
+        }
         return null;
     }
 
@@ -378,6 +397,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitBracketExpr(@NotNull BracketExprContext ctx) {
+        // Need to have more priority on bracketed expressions.
+        visitExpr(ctx.expr());
         return null;
     }
 
@@ -402,6 +423,12 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     @Override
     public Identifier visitBoolBinaryOper(@NotNull BoolBinaryOperContext ctx) {
         ExprContext e = (ExprContext) ctx.getParent();
+        switch (ctx.getText()) {
+            case "||":
+                break;
+            case "&&":
+                break;
+        }
         return null;
     }
 
@@ -437,7 +464,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitIdent(@NotNull IdentContext ctx) {
-        return null;
+        // Need to check this
+        return curr.lookUpAll(ctx.getText());
     }
 
     @Override
@@ -447,33 +475,36 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitIntLiter(@NotNull IntLiterContext ctx) {
-        stackSpace.add(INT_SIZE);
         int intLiter = Integer.parseInt(ctx.getText());
         return new Identifier("" + intLiter);
     }
 
     @Override
     public Identifier visitBoolLiter(@NotNull BoolLiterContext ctx) {
-        stackSpace.add(BOOL_SIZE);
         int boolLiter = ctx.getText().equals("true") ? 1 : 0;
         return new Identifier("" + boolLiter);
     }
 
     @Override
     public Identifier visitCharLiter(@NotNull CharLiterContext ctx) {
-        stackSpace.add(CHAR_SIZE);
         char charLiter = ctx.getText().charAt(1);
         return new Identifier("" + charLiter);
     }
 
     @Override
     public Identifier visitStrLiter(@NotNull StrLiterContext ctx) {
-        stackSpace.add(STRING_SIZE);
         return null;
     }
 
     @Override
     public Identifier visitArrayLiter(@NotNull ArrayLiterContext ctx) {
+        int length = 0;
+        for (ExprContext e : ctx.expr()) {
+
+        }
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r5, length));
+        instrs.add(new SingleDataTransferInstruction<>(STR, r5, r4));
+        instrs.add(new SingleDataTransferInstruction<>(STR, r4, sp));
         return null;
     }
 
