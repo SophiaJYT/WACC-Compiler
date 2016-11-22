@@ -1,7 +1,7 @@
 package backEnd.instructions;
 
 public enum SingleDataTransferType {
-    LDR, LDRSB, LDREQ, LDRNE, LDRLT, STR, STRB
+    LDR, LDRSB, LDREQ, LDRNE, LDRLT, STR, STRB, LDRCS
 
     /* x = number
 
