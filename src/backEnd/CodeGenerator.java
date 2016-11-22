@@ -4,8 +4,7 @@ package backEnd;
 import antlr.WaccParser.*;
 import antlr.WaccParserBaseVisitor;
 import backEnd.instructions.*;
-import frontEnd.Identifier;
-import frontEnd.SymbolTable;
+import frontEnd.*;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.misc.NotNull;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -13,6 +12,7 @@ import org.antlr.v4.runtime.tree.RuleNode;
 
 import java.util.*;
 
+import static backEnd.RegisterType.*;
 import static backEnd.instructions.BranchType.*;
 import static backEnd.instructions.DataProcessingType.*;
 import static backEnd.instructions.SingleDataTransferType.*;
@@ -24,7 +24,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     private SymbolTable<Identifier> head;
     private SymbolTable<Identifier> curr;
     private Deque<Instruction> instrs;
-    private int labelIndex, currStackPos;
+    private Deque<Instruction> messages;
+    private int labelIndex, messageIndex;
+    private boolean hasMessages;
 
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
 
@@ -35,27 +37,29 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         curr = head;
         stackSpace = new ArrayList<>();
         instrs = new ArrayDeque<>();
+        messages = new ArrayDeque<>();
         initialiseRegisters();
         labelIndex = 0;
+        messageIndex = 0;
     }
 
     private void initialiseRegisters() {
-        r0 = new Register(RegisterType.R0);
-        r1 = new Register(RegisterType.R1);
-        r2 = new Register(RegisterType.R2);
-        r3 = new Register(RegisterType.R3);
-        r4 = new Register(RegisterType.R4);
-        r5 = new Register(RegisterType.R5);
-        r6 = new Register(RegisterType.R6);
-        r7 = new Register(RegisterType.R7);
-        r8 = new Register(RegisterType.R8);
-        r9 = new Register(RegisterType.R9);
-        r10 = new Register(RegisterType.R10);
-        r11 = new Register(RegisterType.R11);
-        r12 = new Register(RegisterType.R12);
-        sp = new Register(RegisterType.SP);
-        lr = new Register(RegisterType.LR);
-        pc = new Register(RegisterType.PC);
+        r0 = new Register(R0);
+        r1 = new Register(R1);
+        r2 = new Register(R2);
+        r3 = new Register(R3);
+        r4 = new Register(R4);
+        r5 = new Register(R5);
+        r6 = new Register(R6);
+        r7 = new Register(R7);
+        r8 = new Register(R8);
+        r9 = new Register(R9);
+        r10 = new Register(R10);
+        r11 = new Register(R11);
+        r12 = new Register(R12);
+        sp = new Register(SP);
+        lr = new Register(LR);
+        pc = new Register(PC);
     }
 
     //-------------------------UTILITY FUNCTIONS-----------------------------//
@@ -111,6 +115,54 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         // Add the instructions and change the pointer to the original set of instructions
         old.addAll(instrs);
         instrs = old;
+    }
+
+    // Method to try and generate data section BEFORE main
+    private void createMessage(Identifier ident) {
+        if (!hasMessages) {
+            messages.add(new Directive("data"));
+            hasMessages = true;
+        }
+
+        Type exprType = ident.getType();
+
+        if (exprType.equalsType(AllTypes.STRING)) {
+            String liter = ident.getVal();
+            messages.add(new Directive("word " + liter.length()));
+            messages.add(new Directive("ascii \"" + liter + "\""));
+        }
+
+        if (exprType.equalsType(AllTypes.INT)) {
+
+        }
+
+        if (exprType.equalsType(AllTypes.BOOL)) {
+
+        }
+
+        if (exprType.equalsType(AllTypes.CHAR)) {
+
+        }
+
+        // if (type == String) {
+        //     add string literal to data
+        //     if (string format specifier doesn't exist) {
+        //         add string format specifier
+        //     }
+        // } else if (type == Integer) {
+        //     add integer format specifier to data
+        // } else if (type == Boolean) {
+        //     add both boolean literals to data
+        // } else if (type == Character) {
+        //     nothing to add!
+        // }
+
+
+    }
+
+    // Method to create print instructions AFTER main
+    private void createPrintInstruction(Label printLabel, ExprContext ctx) {
+
     }
 
     //------------------------------VISIT METHODS----------------------------//
@@ -224,8 +276,20 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     @Override
     public Identifier visitPrintStat(@NotNull PrintStatContext ctx) {
         // Need to branch to a "BL print" statement, depending on the type of ctx.expr()
-        // Instruction printInstr = new BranchInstruction(BranchType.BL,
-        //        "print" + visitExpr(ctx.expr()).getName());
+
+        // Generate .data section and add appropriate labels for print instruction
+
+        Identifier ident = visitExpr(ctx.expr());
+        Label printLabel = new Label("p_print_" + ident.getType());
+
+        createMessage(ident);
+
+        Label message = new Label("msg");
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, message));
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+        instrs.add(new BranchInstruction(BL, printLabel));
+
+        // Create print label instructions AFTER the main function is done
 
         return null;
     }
@@ -234,8 +298,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     public Identifier visitPrintlnStat(@NotNull PrintlnStatContext ctx) {
         // Same as visitPrintStat, except we have to append '\n' to the string
         // Instruction printInstr = new BranchInstruction(BranchType.BL,
-        //        "print" + visitExpr(ctx.expr().getName()));
-        // Need to
+        //        "print" + visitExpr(ctx.expr().getVal()));
+        // Need
         return null;
     }
 
@@ -476,19 +540,19 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     @Override
     public Identifier visitIntLiter(@NotNull IntLiterContext ctx) {
         int intLiter = Integer.parseInt(ctx.getText());
-        return new Identifier("" + intLiter);
+        return new Identifier(AllTypes.INT, "" + intLiter);
     }
 
     @Override
     public Identifier visitBoolLiter(@NotNull BoolLiterContext ctx) {
         int boolLiter = ctx.getText().equals("true") ? 1 : 0;
-        return new Identifier("" + boolLiter);
+        return new Identifier(AllTypes.BOOL, "" + boolLiter);
     }
 
     @Override
     public Identifier visitCharLiter(@NotNull CharLiterContext ctx) {
         char charLiter = ctx.getText().charAt(1);
-        return new Identifier("" + charLiter);
+        return new Identifier(AllTypes.CHAR, "" + charLiter);
     }
 
     @Override
@@ -502,6 +566,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         for (ExprContext e : ctx.expr()) {
 
         }
+        // Storing length of array
         instrs.add(new SingleDataTransferInstruction<>(LDR, r5, length));
         instrs.add(new SingleDataTransferInstruction<>(STR, r5, r4));
         instrs.add(new SingleDataTransferInstruction<>(STR, r4, sp));

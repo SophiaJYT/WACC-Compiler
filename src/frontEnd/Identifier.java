@@ -2,19 +2,25 @@ package frontEnd;
 
 public class Identifier {
 
-    private String name;
+    private String val;
+    private Type type;
 
-    public Identifier (String name){
-        this.name = name;
+    public Identifier(Type type, String val){
+        this.val = val;
+        this.type = type;
     }
 
-    public String getName(){
-        return name;
+    public String getVal(){
+        return val;
+    }
+
+    public Type getType() {
+        return type;
     }
 
     @Override
     public String toString(){
-        return "identifier: " + name;
+        return "identifier: " + val;
     }
 
 }
