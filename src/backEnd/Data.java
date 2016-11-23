@@ -43,7 +43,6 @@ public class Data {
         }
 
         Label msg = new Label("msg_", messageIndex++, false);
-        messages.add(msg);
 
         if (exprType.equalsType(AllTypes.STRING)) {
             String liter = ident.getVal();
@@ -58,6 +57,7 @@ public class Data {
                 dictionary.put(AllTypes.ANY, msg);
             }
 
+            messages.add(msg);
             messages.add(new Directive("word " + size));
             messages.add(new Directive("ascii \"" + liter + "\""));
 
@@ -67,7 +67,10 @@ public class Data {
         }
 
         if (exprType.equalsType(AllTypes.BOOL)) {
-
+            String liter = ident.getVal();
+            messages.add(msg);
+            messages.add(new Directive("word " + (liter.length() - 1)));
+            messages.add(new Directive("ascii \"" + liter + "\""));
         }
 
         addFormatSpecifiers();

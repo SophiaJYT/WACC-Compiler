@@ -139,8 +139,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
         if (type.equalsType(AllTypes.BOOL)) {
             printInstrs.add(new DataProcessingInstruction<>(CMP, r0, 0));
-            //printInstrs.add(new SingleDataTransferInstruction<>(LDRNE, r0, true_label));
-            //printInstrs.add(new SingleDataTransferInstruction<>(LDREQ, r0, false_label));
+            Label trueLabel = data.addMessage(new Identifier(AllTypes.BOOL, "true\\0"));
+            printInstrs.add(new SingleDataTransferInstruction<>(LDRNE, r0, trueLabel));
+            Label falseLabel = data.addMessage(new Identifier(AllTypes.BOOL, "false\\0"));
+            printInstrs.add(new SingleDataTransferInstruction<>(LDREQ, r0, falseLabel));
         }
 
         // Unsure about this instruction
