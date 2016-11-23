@@ -21,13 +21,16 @@ import static backEnd.instructions.StackType.*;
 public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     private List<Integer> stackSpace = new ArrayList<>();
-    private SymbolTable<Identifier> head = new SymbolTable<>();
-    private SymbolTable<Identifier> curr = head;
     private Deque<Instruction> instrs = new ArrayDeque<>();
     private Deque<Instruction> printInstrs = new ArrayDeque<>();
     private int labelIndex = 0;
 
+    private SymbolTable<Identifier> head = new SymbolTable<>();
+    private SymbolTable<Identifier> curr = head;
+
     private Data data = new Data();
+
+    private Dictionary<Type, Label> printLabels = new Hashtable<>();
 
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
 
@@ -113,56 +116,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         // Add the instructions and change the pointer to the original set of instructions
         old.addAll(instrs);
         instrs = old;
-    }
-
-    // Method to create print instructions AFTER main
-    private void generatePrintInstruction(Label printLabel, ExprContext ctx,
-                                          Type type) {
-        printInstrs.add(printLabel);
-        printInstrs.add(new StackInstruction(PUSH, lr));
-
-        if (type.equalsType(AllTypes.INT)) {
-            Label formatSpecifier = data.getFormatSpecifier(AllTypes.INT);
-            printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
-            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
-        }
-
-        if (type.equalsType(AllTypes.STRING)) {
-            Label formatSpecifier = data.getFormatSpecifier(AllTypes.STRING);
-            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r1, r0));
-
-            // Unsure about this instruction
-            printInstrs.add(new DataProcessingInstruction<>(ADD, r2, r0, 4));
-
-            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
-        }
-
-        if (type.equalsType(AllTypes.BOOL)) {
-            printInstrs.add(new DataProcessingInstruction<>(CMP, r0, 0));
-            Label trueLabel = data.addMessage(new Identifier(AllTypes.BOOL, "true\\0"));
-            printInstrs.add(new SingleDataTransferInstruction<>(LDRNE, r0, trueLabel));
-            Label falseLabel = data.addMessage(new Identifier(AllTypes.BOOL, "false\\0"));
-            printInstrs.add(new SingleDataTransferInstruction<>(LDREQ, r0, falseLabel));
-        }
-
-        // Unsure about this instruction
-        printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
-
-        printInstrs.add(new BranchInstruction(BL, new Label("printf")));
-        printInstrs.add(new DataProcessingInstruction<>(MOV, r0, 0));
-        printInstrs.add(new BranchInstruction(BL, new Label("fflush")));
-        printInstrs.add(new StackInstruction(POP, pc));
-    }
-
-    private void generatePrintLnInstruction(Label printLnLabel, Label newLineLabel) {
-        printInstrs.add(printLnLabel);
-        printInstrs.add(new StackInstruction(PUSH, lr));
-        printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, newLineLabel));
-        printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
-        printInstrs.add(new BranchInstruction(BL, new Label("puts")));
-        printInstrs.add(new DataProcessingInstruction<>(MOV, r0, 0));
-        printInstrs.add(new BranchInstruction(BL, new Label("fflush")));
-        printInstrs.add(new StackInstruction(POP, pc));
     }
 
     //------------------------------VISIT METHODS----------------------------//
@@ -293,6 +246,27 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         return visitPrint(ctx.expr(), true);
     }
 
+    private void visitPrintLn() {
+        Label printLn = new Label("p_print_ln");
+        instrs.add(new BranchInstruction(BL, printLn));
+
+        // Check if println label exists
+        if (printLabels.get(AllTypes.ANY) != null) {
+            return;
+        }
+
+        Label newLineLabel = data.getMessageLocation(new Identifier(AllTypes.STRING, "\\0"));
+        printInstrs.add(printLn);
+        printInstrs.add(new StackInstruction(PUSH, lr));
+        printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, newLineLabel));
+        printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
+        printInstrs.add(new BranchInstruction(BL, new Label("puts")));
+        printInstrs.add(new DataProcessingInstruction<>(MOV, r0, 0));
+        printInstrs.add(new BranchInstruction(BL, new Label("fflush")));
+        printInstrs.add(new StackInstruction(POP, pc));
+        printLabels.put(AllTypes.ANY, printLn);
+    }
+
     private Identifier visitPrint(@NotNull ExprContext ctx, boolean isPrintLn) {
         Identifier ident = visitExpr(ctx);
         Type type = (ident == null) ? AllTypes.INT : ident.getType();
@@ -304,14 +278,54 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
             instrs.add(new BranchInstruction(BL, new Label("putchar")));
         } else {
             instrs.add(new BranchInstruction(BL, printLabel));
-            generatePrintInstruction(printLabel, ctx, type);
+
+            // Check if the print label already exists
+            if (printLabels.get(type) != null) {
+                if (isPrintLn) {
+                    visitPrintLn();
+                }
+                return null;
+            }
+
+            printLabels.put(type, printLabel);
+            printInstrs.add(printLabel);
+            printInstrs.add(new StackInstruction(PUSH, lr));
+
+            if (type.equalsType(AllTypes.INT)) {
+                Label formatSpecifier = data.getFormatSpecifier(AllTypes.INT);
+                printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
+                printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
+            }
+
+            if (type.equalsType(AllTypes.STRING)) {
+                Label formatSpecifier = data.getFormatSpecifier(AllTypes.STRING);
+                printInstrs.add(new SingleDataTransferInstruction<>(LDR, r1, r0));
+
+                // Unsure about this instruction
+                printInstrs.add(new DataProcessingInstruction<>(ADD, r2, r0, 4));
+
+                printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
+            }
+
+            if (type.equalsType(AllTypes.BOOL)) {
+                printInstrs.add(new DataProcessingInstruction<>(CMP, r0, 0));
+                Label trueLabel = data.getMessageLocation(new Identifier(AllTypes.BOOL, "true\\0"));
+                printInstrs.add(new SingleDataTransferInstruction<>(LDRNE, r0, trueLabel));
+                Label falseLabel = data.getMessageLocation(new Identifier(AllTypes.BOOL, "false\\0"));
+                printInstrs.add(new SingleDataTransferInstruction<>(LDREQ, r0, falseLabel));
+            }
+
+            // Unsure about this instruction
+            printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
+
+            printInstrs.add(new BranchInstruction(BL, new Label("printf")));
+            printInstrs.add(new DataProcessingInstruction<>(MOV, r0, 0));
+            printInstrs.add(new BranchInstruction(BL, new Label("fflush")));
+            printInstrs.add(new StackInstruction(POP, pc));
         }
 
         if (isPrintLn) {
-            Label newLineLabel = data.addMessage(new Identifier(AllTypes.STRING, "\\0"));
-            Label printLn = new Label("p_print_ln");
-            instrs.add(new BranchInstruction(BL, printLn));
-            generatePrintLnInstruction(printLn, newLineLabel);
+            visitPrintLn();
         }
 
         return null;
@@ -561,7 +575,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitIntLiter(@NotNull IntLiterContext ctx) {
-        data.addMessage(new Identifier(AllTypes.INT, ctx.getText()));
+        data.getMessageLocation(new Identifier(AllTypes.INT, ctx.getText()));
         int intLiter = Integer.parseInt(ctx.getText());
         instrs.add(new SingleDataTransferInstruction<>(LDR, r4, intLiter));
         return new Identifier(AllTypes.INT, "" + intLiter);
@@ -587,7 +601,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     public Identifier visitStrLiter(@NotNull StrLiterContext ctx) {
         String value = ctx.getText().substring(1, ctx.getText().length() - 1);
         Identifier ident = new Identifier(AllTypes.STRING, value);
-        Label msg = data.addMessage(ident);
+        Label msg = data.getMessageLocation(ident);
         instrs.add(new SingleDataTransferInstruction<>(LDR, r4, msg));
         return ident;
     }

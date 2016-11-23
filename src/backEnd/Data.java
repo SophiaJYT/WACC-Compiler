@@ -15,21 +15,23 @@ import java.util.Hashtable;
 public class Data {
 
     private Deque<Instruction> messages;
-    private Dictionary<Type, Label> dictionary;
+    private Dictionary<String, Label> messageLocations;
+    private Dictionary<Type, Label> formatSpecifiers;
     private int messageIndex;
-    private boolean hasPrintLn, hasStringMessage, hasIntMessage;
+    private boolean hasStringMessage, hasIntMessage;
 
     public Data() {
         messages = new ArrayDeque<>();
-        dictionary = new Hashtable<>();
+        messageLocations = new Hashtable<>();
+        formatSpecifiers = new Hashtable<>();
         messageIndex = 0;
     }
 
     public Label getFormatSpecifier(Type type) {
-        return dictionary.get(type);
+        return formatSpecifiers.get(type);
     }
 
-    public Label addMessage(Identifier ident) {
+    private Label addMessage(Identifier ident) {
         if (isEmpty()) {
             messages.add(new Directive("data"));
         }
@@ -43,20 +45,13 @@ public class Data {
         }
 
         Label msg = new Label("msg_", messageIndex++, false);
+        String liter = ident.getVal();
 
         if (exprType.equalsType(AllTypes.STRING)) {
-            String liter = ident.getVal();
-
             int size = liter.length();
             if (liter.equals("\\0")) {
                 size--;
-                if (hasPrintLn) {
-                    return dictionary.get(AllTypes.ANY);
-                }
-                hasPrintLn = true;
-                dictionary.put(AllTypes.ANY, msg);
             }
-
             messages.add(msg);
             messages.add(new Directive("word " + size));
             messages.add(new Directive("ascii \"" + liter + "\""));
@@ -67,15 +62,25 @@ public class Data {
         }
 
         if (exprType.equalsType(AllTypes.BOOL)) {
-            String liter = ident.getVal();
             messages.add(msg);
             messages.add(new Directive("word " + (liter.length() - 1)));
             messages.add(new Directive("ascii \"" + liter + "\""));
         }
 
+        messageLocations.put(liter, msg);
+
         addFormatSpecifiers();
 
         return msg;
+    }
+
+    public Label getMessageLocation(Identifier ident) {
+        Label result = messageLocations.get(ident.getVal());
+        if (result != null) {
+            return result;
+        } else {
+            return addMessage(ident);
+        }
     }
 
     private void addFormatSpecifier(Type type) {
@@ -86,14 +91,14 @@ public class Data {
             String intFormat = "%d\\0";
             messages.add(new Directive("word " + (intFormat.length() - 1)));
             messages.add(new Directive("ascii \"" + intFormat + "\""));
-            dictionary.put(AllTypes.INT, msg);
+            formatSpecifiers.put(AllTypes.INT, msg);
         }
 
         if (type.equalsType(AllTypes.STRING)) {
             String strFormat = "%.*s\\0";
             messages.add(new Directive("word " + (strFormat.length() - 1)));
             messages.add(new Directive("ascii \"" + strFormat + "\""));
-            dictionary.put(AllTypes.STRING, msg);
+            formatSpecifiers.put(AllTypes.STRING, msg);
         }
     }
 
