@@ -508,6 +508,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     public Identifier visitUnaryOper(@NotNull UnaryOperContext ctx) {
         ExprContext e = (ExprContext) ctx.getParent();
         ExprContext arg = e.expr(0);
+
+        //TO-DO: Find out what to return
+
         switch (ctx.getText()) {
             case "!":
                 // Generate not boolean instructions
@@ -533,9 +536,16 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
                 }
                 return visitExpr(arg);
             case "len":
+                // Generate len string instructions
+                if (arg.strLiter() != null) {
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, sp));
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, r4));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                    //return
+                }
                 return visitExpr(arg);
             case "ord":
-                // Generate ord instructions
+                // Generate ord character instructions
                 if(arg.charLiter() != null) {
                     instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, sp));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
@@ -543,7 +553,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
                 }
                 return visitExpr(arg);
             case "chr":
-                // Generate chr instructions
+                // Generate chr integer instructions
                 if(arg.intLiter() != null) {
                     instrs.add(new SingleDataTransferInstruction<>(LDR, r4, sp));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
@@ -557,8 +567,31 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     @Override
     public Identifier visitBoolBinaryOper(@NotNull BoolBinaryOperContext ctx) {
         ExprContext e = (ExprContext) ctx.getParent();
+        ExprContext arg1 = e.expr(0);
+        ExprContext arg2 = e.expr(1);
+
         switch (ctx.getText()) {
             case "||":
+                if(arg1.boolLiter() != null && arg2.boolLiter() != null) {
+                    instrs.add(new DataProcessingInstruction<>(ORR, r4, r4, r5));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                }
+//                LDRSB r4, [sp, #1]
+//                LDRSB r5, [sp]
+//                ORR r4, r4, r5
+//                MOV r0, r4
+
+//                LDRSB r4, [sp, #1]
+//                MOV r5, #1
+//                ORR r4, r4, r5
+//                MOV r0, r4
+
+//                LDRSB r4, [sp]
+//                MOV r5, #0
+//                ORR r4, r4, r5
+//                MOV r0, r4
+
+
                 break;
             case "&&":
                 break;
