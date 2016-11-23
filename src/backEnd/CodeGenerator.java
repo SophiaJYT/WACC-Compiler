@@ -572,20 +572,25 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
         switch (ctx.getText()) {
             case "||":
+                //WHAT DOES THE METHOD boolLiter DO? 'cause I'm not sure, and I think I need it
                 if(arg1.boolLiter() != null && arg2.boolLiter() != null) {
                     instrs.add(new DataProcessingInstruction<>(ORR, r4, r4, r5));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                 }
+
+                //for a || b
 //                LDRSB r4, [sp, #1]
 //                LDRSB r5, [sp]
 //                ORR r4, r4, r5
 //                MOV r0, r4
 
+                //for a || true
 //                LDRSB r4, [sp, #1]
 //                MOV r5, #1
 //                ORR r4, r4, r5
 //                MOV r0, r4
 
+                //for b || false
 //                LDRSB r4, [sp]
 //                MOV r5, #0
 //                ORR r4, r4, r5
