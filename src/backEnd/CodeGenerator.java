@@ -20,27 +20,21 @@ import static backEnd.instructions.StackType.*;
 
 public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
-    private List<Integer> stackSpace;
-    private SymbolTable<Identifier> head;
-    private SymbolTable<Identifier> curr;
-    private Deque<Instruction> instrs;
-    private Deque<Instruction> messages;
-    private int labelIndex, messageIndex;
-    private boolean hasMessages;
+    private List<Integer> stackSpace = new ArrayList<>();
+    private SymbolTable<Identifier> head = new SymbolTable<>();
+    private SymbolTable<Identifier> curr = head;
+    private Deque<Instruction> instrs = new ArrayDeque<>();
+    private Deque<Instruction> printInstrs = new ArrayDeque<>();
+    private int labelIndex = 0;
+
+    private Data data = new Data();
 
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
 
     private Register r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, lr, pc;
 
     public CodeGenerator() {
-        head = new SymbolTable<>();
-        curr = head;
-        stackSpace = new ArrayList<>();
-        instrs = new ArrayDeque<>();
-        messages = new ArrayDeque<>();
         initialiseRegisters();
-        labelIndex = 0;
-        messageIndex = 0;
     }
 
     private void initialiseRegisters() {
@@ -82,6 +76,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         return new Label("L", labelIndex++, false);
     }
 
+    private Label getPrintLabel(Type type) {
+        return new Label("p_print_" + type);
+    }
+
     private void visitFunction(Label label, ParserRuleContext ctx) {
         instrs.add(label);
         instrs.add(new StackInstruction(PUSH, lr));
@@ -117,52 +115,52 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         instrs = old;
     }
 
-    // Method to try and generate data section BEFORE main
-    private void createMessage(Identifier ident) {
-        if (!hasMessages) {
-            messages.add(new Directive("data"));
-            hasMessages = true;
+    // Method to create print instructions AFTER main
+    private void generatePrintInstruction(Label printLabel, ExprContext ctx,
+                                          Type type) {
+        printInstrs.add(printLabel);
+        printInstrs.add(new StackInstruction(PUSH, lr));
+
+        if (type.equalsType(AllTypes.INT)) {
+            Label formatSpecifier = data.getFormatSpecifier(AllTypes.INT);
+            printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
+            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
         }
 
-        Type exprType = ident.getType();
+        if (type.equalsType(AllTypes.STRING)) {
+            Label formatSpecifier = data.getFormatSpecifier(AllTypes.STRING);
+            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r1, r0));
 
-        if (exprType.equalsType(AllTypes.STRING)) {
-            String liter = ident.getVal();
-            messages.add(new Directive("word " + liter.length()));
-            messages.add(new Directive("ascii \"" + liter + "\""));
+            // Unsure about this instruction
+            printInstrs.add(new DataProcessingInstruction<>(ADD, r2, r0, 4));
+
+            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
         }
 
-        if (exprType.equalsType(AllTypes.INT)) {
-
+        if (type.equalsType(AllTypes.BOOL)) {
+            printInstrs.add(new DataProcessingInstruction<>(CMP, r0, 0));
+            //printInstrs.add(new SingleDataTransferInstruction<>(LDRNE, r0, true_label));
+            //printInstrs.add(new SingleDataTransferInstruction<>(LDREQ, r0, false_label));
         }
 
-        if (exprType.equalsType(AllTypes.BOOL)) {
+        // Unsure about this instruction
+        printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
 
-        }
-
-        if (exprType.equalsType(AllTypes.CHAR)) {
-
-        }
-
-        // if (type == String) {
-        //     add string literal to data
-        //     if (string format specifier doesn't exist) {
-        //         add string format specifier
-        //     }
-        // } else if (type == Integer) {
-        //     add integer format specifier to data
-        // } else if (type == Boolean) {
-        //     add both boolean literals to data
-        // } else if (type == Character) {
-        //     nothing to add!
-        // }
-
-
+        printInstrs.add(new BranchInstruction(BL, new Label("printf")));
+        printInstrs.add(new DataProcessingInstruction<>(MOV, r0, 0));
+        printInstrs.add(new BranchInstruction(BL, new Label("fflush")));
+        printInstrs.add(new StackInstruction(POP, pc));
     }
 
-    // Method to create print instructions AFTER main
-    private void createPrintInstruction(Label printLabel, ExprContext ctx) {
-
+    private void generatePrintLnInstruction(Label printLnLabel, Label newLineLabel) {
+        printInstrs.add(printLnLabel);
+        printInstrs.add(new StackInstruction(PUSH, lr));
+        printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, newLineLabel));
+        printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
+        printInstrs.add(new BranchInstruction(BL, new Label("puts")));
+        printInstrs.add(new DataProcessingInstruction<>(MOV, r0, 0));
+        printInstrs.add(new BranchInstruction(BL, new Label("fflush")));
+        printInstrs.add(new StackInstruction(POP, pc));
     }
 
     //------------------------------VISIT METHODS----------------------------//
@@ -180,6 +178,14 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         }
 
         visitFunction(new Label("main"), ctx.stat());
+
+        // Add messages to the front of the program
+        Deque<Instruction> messages = data.getData();
+        messages.addAll(instrs);
+        instrs = messages;
+
+        // Add print labels to end of the program
+        instrs.addAll(printInstrs);
 
         // Print instructions to standard output
         for (Instruction instr : instrs) {
@@ -256,6 +262,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitReturnStat(@NotNull ReturnStatContext ctx) {
+        visitExpr(ctx.expr());
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
         return null;
     }
 
@@ -275,31 +283,35 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitPrintStat(@NotNull PrintStatContext ctx) {
-        // Need to branch to a "BL print" statement, depending on the type of ctx.expr()
-
-        // Generate .data section and add appropriate labels for print instruction
-
-        Identifier ident = visitExpr(ctx.expr());
-        Label printLabel = new Label("p_print_" + ident.getType());
-
-        createMessage(ident);
-
-        Label message = new Label("msg");
-        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, message));
-        instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-        instrs.add(new BranchInstruction(BL, printLabel));
-
-        // Create print label instructions AFTER the main function is done
-
-        return null;
+        return visitPrint(ctx.expr(), false);
     }
 
     @Override
     public Identifier visitPrintlnStat(@NotNull PrintlnStatContext ctx) {
-        // Same as visitPrintStat, except we have to append '\n' to the string
-        // Instruction printInstr = new BranchInstruction(BranchType.BL,
-        //        "print" + visitExpr(ctx.expr().getVal()));
-        // Need
+        return visitPrint(ctx.expr(), true);
+    }
+
+    private Identifier visitPrint(@NotNull ExprContext ctx, boolean isPrintLn) {
+        Identifier ident = visitExpr(ctx);
+        Type type = (ident == null) ? AllTypes.INT : ident.getType();
+        Label printLabel = getPrintLabel(type);
+
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+
+        if (type.equalsType(AllTypes.CHAR)) {
+            instrs.add(new BranchInstruction(BL, new Label("putchar")));
+        } else {
+            instrs.add(new BranchInstruction(BL, printLabel));
+            generatePrintInstruction(printLabel, ctx, type);
+        }
+
+        if (isPrintLn) {
+            Label newLineLabel = data.addMessage(new Identifier(AllTypes.STRING, "\\0"));
+            Label printLn = new Label("p_print_ln");
+            instrs.add(new BranchInstruction(BL, printLn));
+            generatePrintLnInstruction(printLn, newLineLabel);
+        }
+
         return null;
     }
 
@@ -469,11 +481,19 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     @Override
     public Identifier visitUnaryOper(@NotNull UnaryOperContext ctx) {
         ExprContext e = (ExprContext) ctx.getParent();
+        ExprContext arg = e.expr(0);
         switch (ctx.getText()) {
             case "!":
                 break;
             case "-":
-                break;
+                // Generate negative integer instructions
+                if (arg.intLiter() != null) {
+                    Integer value = Integer.parseInt(e.getText());
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, value));
+                    return new Identifier(AllTypes.INT, e.getText());
+                } else {
+                    return visitExpr(arg);
+                }
             case "len":
                 break;
             case "ord":
@@ -539,32 +559,42 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     @Override
     public Identifier visitIntLiter(@NotNull IntLiterContext ctx) {
+        data.addMessage(new Identifier(AllTypes.INT, ctx.getText()));
         int intLiter = Integer.parseInt(ctx.getText());
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, intLiter));
         return new Identifier(AllTypes.INT, "" + intLiter);
     }
 
     @Override
     public Identifier visitBoolLiter(@NotNull BoolLiterContext ctx) {
-        int boolLiter = ctx.getText().equals("true") ? 1 : 0;
-        return new Identifier(AllTypes.BOOL, "" + boolLiter);
+        String text = ctx.getText();
+        int boolLiter = text.equals("true") ? 1 : 0;
+        instrs.add(new DataProcessingInstruction<>(MOV, r4, boolLiter));
+        return new Identifier(AllTypes.BOOL, text);
     }
 
     @Override
     public Identifier visitCharLiter(@NotNull CharLiterContext ctx) {
-        char charLiter = ctx.getText().charAt(1);
-        return new Identifier(AllTypes.CHAR, "" + charLiter);
+        String text = ctx.getText();
+        char charLiter = text.charAt(1);
+        instrs.add(new DataProcessingInstruction<>(MOV, r4, charLiter));
+        return new Identifier(AllTypes.CHAR, text);
     }
 
     @Override
     public Identifier visitStrLiter(@NotNull StrLiterContext ctx) {
-        return null;
+        String value = ctx.getText().substring(1, ctx.getText().length() - 1);
+        Identifier ident = new Identifier(AllTypes.STRING, value);
+        Label msg = data.addMessage(ident);
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, msg));
+        return ident;
     }
 
     @Override
     public Identifier visitArrayLiter(@NotNull ArrayLiterContext ctx) {
         int length = 0;
         for (ExprContext e : ctx.expr()) {
-
+            // TODO: Store array elements in symbol table and total heap space
         }
         // Storing length of array
         instrs.add(new SingleDataTransferInstruction<>(LDR, r5, length));

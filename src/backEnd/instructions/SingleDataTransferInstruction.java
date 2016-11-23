@@ -23,8 +23,11 @@ public class SingleDataTransferInstruction<T> implements Instruction {
     @Override
     public String toString() {
         String strAddress = address.toString();
-        if (address instanceof Integer || address instanceof Label) {
+        if (address instanceof Integer) {
             strAddress = "=" + address;
+        }
+        if (address instanceof Label) {
+            strAddress = "=" + ((Label) address).getName();
         }
         if (address instanceof Register) {
             strAddress = "[" + address + "]";

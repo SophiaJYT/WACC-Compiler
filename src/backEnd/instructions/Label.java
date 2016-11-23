@@ -15,9 +15,10 @@ public class Label implements Instruction{
         if (!isFunction) {
             this.index = index;
             this.label = label;
+        } else {
+            this.label = "f_" + label;
+            this.isFunction = true;
         }
-        this.label = "f_" + label;
-        this.isFunction = true;
     }
 
     public int getIndex(){
@@ -25,11 +26,7 @@ public class Label implements Instruction{
     }
 
     public String getName(){
-        if(isFunction) {
-            return "f_";
-        } else {
-            return label;
-        }
+        return (index != null) ? label + index : label;
     }
 
     @Override
