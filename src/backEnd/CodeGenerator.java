@@ -36,6 +36,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
     private Register r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, lr, pc;
 
+    private int stackPointer = 1024;
+
     public CodeGenerator() {
         initialiseRegisters();
     }
@@ -177,13 +179,17 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     @Override
     public Identifier visitVarInit(@NotNull VarInitContext ctx) {
 
-        // LDR r4, =(value_of_assignRhs)
-        // int offset = total_size - size_of_assignRhs
-        // if (offset == 0) {
-        //     STR r4, [sp]
-        // } else {
-        //     STR r4, [sp, #offset]
-        // }
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, ctx.assignRhs()));
+
+        //TO-DO: find the size of assign_rhs and decide how to calculate the value of stackPointer
+        int offset = getStackSize(stackSpace) ;// - size_of_assignRhs
+
+        if(offset == 0) {
+            instrs.add(new SingleDataTransferInstruction<>(STR, r4, sp));
+        } else {
+            instrs.add(new SingleDataTransferInstruction<>(STR, r4,
+                    new ShiftRegister(sp.getType(), offset, null)));
+        }
 
         return null;
     }
@@ -193,13 +199,17 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
 
         // Should theoretically be the same as visitVarInit (not 100% sure yet)
 
-        // LDR r4, =(value_of_assignRhs)
-        // int offset = total_size - size_of_assignRhs
-        // if (offset == 0) {
-        //     STR r4, [sp]
-        // } else {
-        //     STR r4, [sp, #offset]
-        // }
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, ctx.assignRhs()));
+
+        //TO-DO: find the size of assign_rhs and decide how to calculate the value of stackPointer
+        int offset = getStackSize(stackSpace) ;// - size_of_assignRhs
+
+        if(offset == 0) {
+            instrs.add(new SingleDataTransferInstruction<>(STR, r4, sp));
+        } else {
+            instrs.add(new SingleDataTransferInstruction<>(STR, r4,
+                    new ShiftRegister(sp.getType(), offset, null)));
+        }
 
         return null;
     }
@@ -500,22 +510,46 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         ExprContext arg = e.expr(0);
         switch (ctx.getText()) {
             case "!":
-                break;
+                // Generate not boolean instructions
+                if(arg.boolLiter() != null) {
+                    instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, sp));
+                    instrs.add(new DataProcessingInstruction<>(EOR, r4, r4, 1));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                    return null;
+                }
+                return visitExpr(arg);
             case "-":
                 // Generate negative integer instructions
                 if (arg.intLiter() != null) {
-                    Integer value = Integer.parseInt(e.getText());
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, value));
-                    return new Identifier(AllTypes.INT, e.getText());
-                } else {
-                    return visitExpr(arg);
+//                    Integer value = Integer.parseInt(e.getText());
+//                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, value));
+//                    return new Identifier(AllTypes.INT, e.getText());
+
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, sp));
+                    instrs.add(new DataProcessingInstruction<>(RSBS, r4, r4, 0));
+                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error", null, false)));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                    // return
                 }
+                return visitExpr(arg);
             case "len":
-                break;
+                return visitExpr(arg);
             case "ord":
-                break;
+                // Generate ord instructions
+                if(arg.charLiter() != null) {
+                    instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, sp));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                    // return
+                }
+                return visitExpr(arg);
             case "chr":
-                break;
+                // Generate chr instructions
+                if(arg.intLiter() != null) {
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, sp));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                    // return
+                }
+                return visitExpr(arg);
         }
         return null;
     }
