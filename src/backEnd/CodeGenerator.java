@@ -630,8 +630,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         switch (ctx.getText()) {
             case "||":
                 instrs.add(new DataProcessingInstruction<>(ORR, r4, r4, r5));
+                break;
             case "&&":
                 instrs.add(new DataProcessingInstruction<>(AND, r4, r4, r5));
+                break;
         }
         return BOOL;
     }
