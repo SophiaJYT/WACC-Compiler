@@ -15,6 +15,8 @@ import java.util.*;
 import static backEnd.RegisterType.*;
 import static backEnd.instructions.BranchType.*;
 import static backEnd.instructions.DataProcessingType.*;
+import static backEnd.instructions.MultiplyInstructionType.SMULL;
+import static backEnd.instructions.ShiftType.ASR;
 import static backEnd.instructions.SingleDataTransferType.*;
 import static backEnd.instructions.StackType.*;
 
@@ -570,84 +572,40 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
         ExprContext arg1 = e.expr(0);
         ExprContext arg2 = e.expr(1);
 
-        switch (ctx.getText()) {
-            case "||":
-                //WHAT DOES THE METHOD boolLiter DO? 'cause I'm not sure, and I think I need it
-                // Why do we need to add the instructions below?
-                if(arg1.boolLiter() != null && arg2.boolLiter() != null) {
+        if(arg1.boolLiter() != null && arg2.boolLiter() != null) {
+            switch (ctx.getText()) {
+                case "||":
+                    if(arg2.getText().equals("true")) {
+                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, new ShiftRegister(sp.getType(), 1, null)));
+                        instrs.add(new DataProcessingInstruction<>(MOV, r5, 1));
+                    } else if(arg2.equals("false")) {
+                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, sp));
+                        instrs.add(new DataProcessingInstruction<>(MOV, r5, 0));
+                    } else {
+                        // a || b
+                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, new ShiftRegister(sp.getType(), 1, null)));
+                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r5, sp));
+                    }
                     instrs.add(new DataProcessingInstruction<>(ORR, r4, r4, r5));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                }
+                // return
+                case "&&":
 
-                if(arg2.equals(true)){
-                    instrs.add(new DataProcessingInstruction<>(LDRSB, r4, new ShiftRegister(sp.getType(), 1, null)));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r5, 1));
-                    instrs.add(new SingleDataTransferInstruction<>(ORR, r4, r4, r5));
+                    if(arg2.getText().equals("false")) {
+                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, sp));
+                        instrs.add(new DataProcessingInstruction<>(MOV, r5, 0));
+                    } else if(arg2.getText().equals("true")) {
+                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, sp));
+                        instrs.add(new DataProcessingInstruction<>(MOV, r5, 1));
+                    } else {
+                        // a && b
+                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, new ShiftRegister(sp.getType(), 1, null)));
+                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r5, sp));
+                    }
+                    instrs.add(new DataProcessingInstruction<>(AND, r4, r4, r5));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-//                LDRSB r4, [sp, #1]
-//                MOV r5, #1
-//                ORR r4, r4, r5
-//                MOV r0, r4
-
-                } else if(arg2.equals(false)){
-                    instrs.add(new DataProcessingInstruction<>(LDRSB, r4, sp);
-                    instrs.add(new DataProcessingInstruction<>(MOV, r5, 0));
-                    instrs.add(new SingleDataTransferInstruction<>(ORR, r4, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-
-//                LDRSB r4, [sp]
-//                MOV r5, #0
-//                ORR r4, r4, r5
-//                MOV r0, r4
-
-                } else {
-                    // for a || b
-                    instrs.add(new DataProcessingInstruction<>(LDRSB, r4, new ShiftRegister(sp.getType(), 1, null)));
-                    instrs.add(new DataProcessingInstruction<>(LDRSB, r5, sp));
-                    instrs.add(new SingleDataTransferInstruction<>(ORR, r4, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-
-//                LDRSB r4, [sp, #1]
-//                LDRSB r5, [sp]
-//                ORR r4, r4, r5
-//                MOV r0, r4
-                }
-
-                break;
-            case "&&":
-
-                if(arg2.equals(false)){
-                    instrs.add(new DataProcessingInstruction<>(LDRSB, r4, sp);
-                    instrs.add(new DataProcessingInstruction<>(MOV, r5, 0));
-                    instrs.add(new SingleDataTransferInstruction<>(AND, r4, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-//                for a && false
-//                LDRSB r4, [sp]
-//                MOV r5, #0
-//                AND r4, r4, r5
-//                MOV r0, r4
-
-                } else if(arg2.equals(true)){
-                    instrs.add(new DataProcessingInstruction<>(LDRSB, r4, sp);
-                    instrs.add(new DataProcessingInstruction<>(MOV, r5, 1));
-                    instrs.add(new SingleDataTransferInstruction<>(AND, r4, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-//                    LDRSB r4, [sp]
-//                    MOV r5, #1
-//                    AND r4, r4, r5
-//                    MOV r0, r4
-                } else {
-                    instrs.add(new DataProcessingInstruction<>(LDRSB, r4, new ShiftRegister(sp.getType(), 1, null)));
-                    instrs.add(new DataProcessingInstruction<>(LDRSB, r5, sp));
-                    instrs.add(new SingleDataTransferInstruction<>(AND, r4, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-
-//                  LDRSB r4, [sp, #1]
-//                  LDRSB r5, [sp]
-//                  AND r4, r4, r5
-//                  MOV r0, r4
-                }
-                break;
+                // return
+            }
         }
         return null;
     }
@@ -655,29 +613,38 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
     @Override
     public Identifier visitBinaryOper(@NotNull BinaryOperContext ctx) {
         ExprContext e = (ExprContext) ctx.getParent();
-        switch (ctx.getText()) {
-            case "*":
-                break;
-            case "/":
-                break;
-            case "%":
-                break;
-            case "+":
-                break;
-            case "-":
-                break;
-            case ">":
-                break;
-            case ">=":
-                break;
-            case "<":
-                break;
-            case "<=":
-                break;
-            case "==":
-                break;
-            case "!=":
-                break;
+        ExprContext arg1 = e.expr(0);
+        ExprContext arg2 = e.expr(1);
+
+        if(arg1.intLiter() != null && arg2.intLiter() != null) {
+            switch (ctx.getText()) {
+                case "*":
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
+                    instrs.add(new MultiplyInstruction(SMULL, r4, r5, r4, r5));
+                    instrs.add(new DataProcessingInstruction<>(CMP, r5, r4, new ShiftInstruction(ASR, 31)));
+                    break;
+                case "/":
+                    break;
+                case "%":
+                    break;
+                case "+":
+                    break;
+                case "-":
+                    break;
+                case ">":
+                    break;
+                case ">=":
+                    break;
+                case "<":
+                    break;
+                case "<=":
+                    break;
+                case "==":
+                    break;
+                case "!=":
+                    break;
+            }
         }
         return null;
     }
