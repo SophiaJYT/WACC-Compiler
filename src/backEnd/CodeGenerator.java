@@ -248,6 +248,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitVarAssign(@NotNull VarAssignContext ctx) {
 
+
+        Type lhs = visitAssignLhs(ctx.assignLhs());
         // Should theoretically be the same as visitVarInit (not 100% sure yet)
         visitAssignRhs(ctx.assignRhs());
 
@@ -259,10 +261,16 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         String id = ctx.assignLhs().getText();
         int offset = stackSpace.get(id);// - size_of_assignRhs
 
+        SingleDataTransferType storeType = STR;
+
+        if (lhs.equalsType(BOOL) || lhs.equalsType(CHAR)) {
+            storeType = STRB;
+        }
+
         if (offset == 0) {
-            instrs.add(new SingleDataTransferInstruction<>(STR, r4, sp));
+            instrs.add(new SingleDataTransferInstruction<>(storeType, r4, sp));
         } else {
-            instrs.add(new SingleDataTransferInstruction<>(STR, r4,
+            instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
                     new ShiftRegister(sp.getType(), offset, null)));
         }
 
