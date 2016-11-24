@@ -108,7 +108,8 @@ public class DataProcessingInstruction <T> implements Instruction {
 
     //checks if operand2 is valid
     private void checkOperand(T operand) throws IllegalArgumentException {
-        if (!(operand instanceof Integer) && !(operand instanceof Register)) {
+        if (!(operand instanceof Integer) && !(operand instanceof Register)
+                &&!(operand instanceof Character)) {
             throw new  IllegalArgumentException("Instr: " + type +
                     " Operand has to be a register or number/expression");
         }
