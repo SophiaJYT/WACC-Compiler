@@ -596,8 +596,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                 }
                 if (arg.ident() != null) {
                     visitIdent(arg.ident());
-                    instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4,
-                            new ShiftRegister(SP, currVarPos, null)));
                     instrs.add(new DataProcessingInstruction<>(EOR, r4, r4, 1));
                     return BOOL;
                 }
@@ -734,7 +732,14 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         // Need to check this
         //return curr.lookUpAll(ctx.getText());
         currVarPos = stackSpace.get(ctx.getText());
-        return curr.lookUpAll(ctx.getText());
+        Type type = curr.lookUpAll(ctx.getText());
+        SingleDataTransferType loadRegType = LDR;
+        if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
+            loadRegType = LDRSB;
+        }
+        instrs.add(new SingleDataTransferInstruction<>(loadRegType, r4,
+                new ShiftRegister(SP, currVarPos, null)));
+        return type;
     }
 
     @Override
