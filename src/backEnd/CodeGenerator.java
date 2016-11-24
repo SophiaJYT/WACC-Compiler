@@ -782,8 +782,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 //                        27              MOVGT r4, #1
 //                        28              MOVLE r4, #0
 //                        MOV r0, r4
-                        int offset1 = 0;
-                        int offset2 = 0;
+                        int offset1 = stackSpace.get(arg1.getText());
+                        int offset2 = stackSpace.get(arg2.getText());
                         instrs.add(new SingleDataTransferInstruction<>(LDR, r4,
                                 new ShiftRegister(sp.getType(), offset1, null)));
                         instrs.add(new SingleDataTransferInstruction<>(LDR, r5,
@@ -800,8 +800,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 //                        29              MOVGE r4, #1
 //                        30              MOVLT r4, #0
 //                        31              MOV r0, r4
-                        int offset3 = 0;
-                        int offset4 = 0;
+                        int offset3 = stackSpace.get(arg1.getText());
+                        int offset4 = stackSpace.get(arg2.getText());
                         instrs.add(new SingleDataTransferInstruction<>(LDR, r4,
                                 new ShiftRegister(sp.getType(), offset3, null)));
                         instrs.add(new SingleDataTransferInstruction<>(LDR, r5,
@@ -812,8 +812,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                         instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                         break;
                     case "<":
-                        int offset5 = 0;
-                        int offset6 = 0;
+                        int offset5 = stackSpace.get(arg1.getText());
+                        int offset6 = stackSpace.get(arg2.getText());
                         SingleDataTransferType type = LDRSB;
                         if(arg1.intLiter() != null && arg2.intLiter() != null) {
                             type = LDR;
@@ -848,8 +848,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 //                        29              MOVLE r4, #1
 //                        30              MOVGT r4, #0
 //                        31              MOV r0, r4
-                        int offset7 = 0;
-                        int offset8 = 0;
+                        int offset7 = stackSpace.get(arg1.getText());
+                        int offset8 = stackSpace.get(arg2.getText());
                         SingleDataTransferType type1 = LDRSB;
                         if(arg1.intLiter() != null && arg2.intLiter() != null) {
                             type1 = LDR;
@@ -871,8 +871,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 //                        37              MOVEQ r4, #1
 //                        38              MOVNE r4, #0
 //                        39              MOV r0, r4
-                        int offset9 = 0;
-                        int offset10 = 0;
+                        int offset9 = stackSpace.get(arg1.getText());
+                        int offset10 = stackSpace.get(arg2.getText());
                         SingleDataTransferType type2 = LDRSB;
                         if(arg1.intLiter() != null && arg2.intLiter() != null) {
                             type2 = LDR;
@@ -894,8 +894,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 //                        37              MOVNE r4, #1
 //                        38              MOVEQ r4, #0
 //                        39              MOV r0, r4
-                        int offset11 = 0;
-                        int offset12 = 0;
+                        int offset11 = stackSpace.get(arg1.getText());
+                        int offset12 = stackSpace.get(arg2.getText());
                         SingleDataTransferType type3 = LDRSB;
                         if(arg1.intLiter() != null && arg2.intLiter() != null) {
                             type3 = LDR;
