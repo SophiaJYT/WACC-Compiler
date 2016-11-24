@@ -38,6 +38,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     private Dictionary<Type, Label> printLabels = new Hashtable<>();
 
+    private static int MAX_STACK_OFFSET = 1024;
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
 
     private Register r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, lr, pc;
@@ -101,6 +102,22 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         instrs.add(new Directive("ltorg"));
     }
 
+    private void addSubStackInstrs(int size) {
+        if (size > 0) {
+            int spaceReserved = (size < MAX_STACK_OFFSET) ? size : MAX_STACK_OFFSET;
+            instrs.add(new DataProcessingInstruction<>(SUB, sp, sp, spaceReserved));
+            addSubStackInstrs(size - MAX_STACK_OFFSET);
+        }
+    }
+
+    private void addAddStackInstrs(int size) {
+        if (size > 0) {
+            int spaceReserved = (size < MAX_STACK_OFFSET) ? size : MAX_STACK_OFFSET;
+            addAddStackInstrs(size - MAX_STACK_OFFSET);
+            instrs.add(new DataProcessingInstruction<>(ADD, sp, sp, spaceReserved));
+        }
+    }
+
     private void generateInstrs(ParserRuleContext ctx) {
         // Store instructions in scope in an empty deque
         Deque<Instruction> old = instrs;
@@ -135,13 +152,11 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         stackSize = stackVisitor.visit(ctx);
 
         // Add the instructions needed for storing all the local variables in the scope
-        if (stackSize > 0) {
-            instrs.add(new DataProcessingInstruction<>(SUB, sp, sp, stackSize));
-        }
+        addSubStackInstrs(stackSize);
+
         visit(ctx.stat());
-        if (stackSize > 0) {
-            instrs.add(new DataProcessingInstruction<>(ADD, sp, sp, stackSize));
-        }
+
+        addAddStackInstrs(stackSize);
 
         instrs.add(new SingleDataTransferInstruction<>(LDR, r0, 0));
         instrs.add(new StackInstruction(POP, pc));
