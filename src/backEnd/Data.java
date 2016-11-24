@@ -83,9 +83,14 @@ public class Data {
         }
     }
 
-    private void addFormatSpecifier(Type type) {
+    public void addFormatSpecifier(Type type) {
         Label msg = new Label("msg_", messageIndex++, false);
         messages.add(msg);
+
+        // Check if specifier already added
+        if (formatSpecifiers.get(type) != null) {
+            return;
+        }
 
         if (type.equalsType(AllTypes.INT)) {
             String intFormat = "%d\\0";
@@ -100,6 +105,14 @@ public class Data {
             messages.add(new Directive("ascii \"" + strFormat + "\""));
             formatSpecifiers.put(AllTypes.STRING, msg);
         }
+
+        if (type.equalsType(AllTypes.CHAR)) {
+            String charFormat = " %c\\0";
+            messages.add(new Directive("word " + (charFormat.length() - 1)))    ;
+            messages.add(new Directive("ascii \"" + charFormat + "\""));
+            formatSpecifiers.put(AllTypes.CHAR, msg);
+        }
+
     }
 
     private void addFormatSpecifiers() {

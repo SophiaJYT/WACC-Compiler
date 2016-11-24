@@ -31,8 +31,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     private Deque<Instruction> printInstrs = new ArrayDeque<>();
     private int labelIndex = 0;
 
-    private SymbolTable<Identifier> head = new SymbolTable<>();
-    private SymbolTable<Identifier> curr = head;
+    private SymbolTable<Type> head = new SymbolTable<>();
+    private SymbolTable<Type> curr = head;
 
     private Data data = new Data();
 
@@ -210,7 +210,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         //TO-DO: find the size of assign_rhs and decide how to calculate the value of stackPointer
         int offset = stackSize - stackPos;// - size_of_assignRhs
-        stackSpace.put(ctx.ident().getText(), offset);
+        String varName = ctx.ident().getText();
+        stackSpace.put(varName, offset);
+        curr.add(varName, lhs);
 
         if(offset == 0) {
             instrs.add(new SingleDataTransferInstruction<>(STR, r4, sp));
@@ -249,6 +251,27 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitReadStat(@NotNull ReadStatContext ctx) {
         // Need to branch to a "BL read" statement, depending on the type of ctx.assignLhs()
+        Type type = visitAssignLhs(ctx.assignLhs());
+
+        Label readLabel = new Label("p_read_" + type);
+        // TODO: Check this is valid
+        instrs.add(new DataProcessingInstruction<>(ADD, r4, sp, currVarPos));
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+        instrs.add(new BranchInstruction(BL, readLabel));
+
+        // Add the format specifier to data
+        data.addFormatSpecifier(type);
+        Label formatSpecifier = data.getFormatSpecifier(type);
+
+        // Add read label instructions
+        printInstrs.add(readLabel);
+        printInstrs.add(new StackInstruction(PUSH, lr));
+        printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
+        printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
+        printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
+        printInstrs.add(new BranchInstruction(BL, new Label("scanf")));
+        printInstrs.add(new StackInstruction(POP, pc));
+
         return null;
     }
 
@@ -690,7 +713,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         // Need to check this
         //return curr.lookUpAll(ctx.getText());
         currVarPos = stackSpace.get(ctx.getText());
-        return null;
+        return curr.lookUpAll(ctx.getText());
     }
 
     @Override
