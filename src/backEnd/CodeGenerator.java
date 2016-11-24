@@ -473,10 +473,12 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitBeginEnd(@NotNull BeginEndContext ctx) {
         // Create new scopes for current symbol table and stack space
-//        curr = new SymbolTable<>(curr);
 //        List<Integer> old = stackSpace;
 //        stackSpace = new ArrayList<>();
-        int old = stackSize;
+        curr = new SymbolTable<>(curr);
+        Dictionary<String, Integer> oldStack = stackSpace;
+        stackSpace = new Hashtable<>();
+        int oldSize = stackSize;
 
         stackSize = stackVisitor.visit(ctx.stat());
 
@@ -486,13 +488,14 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         addAddStackInstrs(stackSize);
 
-        stackSize = old;
+        stackSpace = oldStack;
+        stackSize = oldSize;
+        curr = curr.encSymbolTable;
 
 //        generateInstrs(ctx);
 
         // Exit the current scope for stack space and current symbol table
 //        stackSpace = old;
-//        curr = curr.encSymbolTable;
         return null;
     }
 
