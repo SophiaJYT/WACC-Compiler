@@ -15,9 +15,12 @@ public class ShiftRegister extends Register{
 
     @Override
     public String toString() {
-        if (exclamation == null) {
-            exclamation = ' ';
-        }
-        return "[" + super.toString() + ", #" + offset + "]" + exclamation;
+//        if (exclamation == null) {
+//            exclamation = ' ';
+//        }
+//        return "[" + super.toString() + ", #" + offset + "]" + exclamation;
+        return super.toString() +
+                ((offset == 0) ? "" : ", #" + offset)
+                + ((exclamation == null) ? "" : exclamation);
     }
 }
