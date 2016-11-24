@@ -477,8 +477,15 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 //        List<Integer> old = stackSpace;
 //        stackSpace = new ArrayList<>();
         int old = stackSize;
+
         stackSize = stackVisitor.visit(ctx.stat());
+
+        addSubStackInstrs(stackSize);
+
         visit(ctx.stat());
+
+        addAddStackInstrs(stackSize);
+
         stackSize = old;
 
 //        generateInstrs(ctx);
