@@ -590,14 +590,14 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             case "-":
                 // Generate negative integer instructions
                 if (arg.intLiter() != null) {
-//                    Integer value = Integer.parseInt(e.getText());
-//                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, value));
+                    Integer value = Integer.parseInt(e.getText());
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, value));
 //                    return new Identifier(AllTypes.INT, e.getText());
-
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, sp));
-                    instrs.add(new DataProcessingInstruction<>(RSBS, r4, r4, 0));
-                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error", null, false)));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+//                    visitIntLiter(arg.intLiter());
+//                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, sp));
+//                    instrs.add(new DataProcessingInstruction<>(RSBS, r4, r4, 0));
+//                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error", null, false)));
+//                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     return INT;
                 }
                 return visitExpr(arg);
