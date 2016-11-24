@@ -623,16 +623,49 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
                     instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
                     instrs.add(new MultiplyInstruction(SMULL, r4, r5, r4, r5));
                     instrs.add(new DataProcessingInstruction<>(CMP, r5, r4, new ShiftInstruction(ASR, 31)));
+                    instrs.add(new BranchInstruction(BLNE, new Label("p_throw_overflow_error")));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     break;
                 case "/":
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
+                    instrs.add(new BranchInstruction(BL, new Label("p_check_divide_by_zero")));
+                    instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     break;
                 case "%":
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
+                    instrs.add(new BranchInstruction(BL, new Label("p_check_divide_by_zero")));
+                    instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r4, r1));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     break;
                 case "+":
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
+                    instrs.add(new DataProcessingInstruction<>(ADDS, r4, r4, r5));
+                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error")));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     break;
                 case "-":
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
+                    instrs.add(new DataProcessingInstruction<>(SUBS, r4, r4, r5));
+                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error")));
+                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     break;
-                case ">":
+            }
+            // not sure about the if condition
+            if((arg1.intLiter() != null && arg2.intLiter() != null) ||
+                    (arg1.charLiter() != null && arg2.charLiter() != null)) {
+                switch (ctx.getText()) {
+                    case ">":
                     break;
                 case ">=":
                     break;
@@ -644,6 +677,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Identifier> {
                     break;
                 case "!=":
                     break;
+                }
             }
         }
         return null;
