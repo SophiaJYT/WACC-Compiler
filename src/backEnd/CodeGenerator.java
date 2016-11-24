@@ -733,7 +733,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                     instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
                     instrs.add(new MultiplyInstruction(SMULL, r4, r5, r4, r5));
                     instrs.add(new DataProcessingInstruction<>(CMP, r5, r4, new ShiftInstruction(ASR, 31)));
-                    instrs.add(new BranchInstruction(BLNE, new Label("p_throw_overflow_error")));
+//                    instrs.add(new BranchInstruction(BLNE, new Label("p_throw_overflow_error")));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     return INT;
                 case "/":
@@ -741,8 +741,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                     instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
-                    instrs.add(new BranchInstruction(BL, new Label("p_check_divide_by_zero")));
-                    instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
+//                    instrs.add(new BranchInstruction(BL, new Label("p_check_divide_by_zero")));
+//                    instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
                     instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     return INT;
@@ -751,8 +751,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                     instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
-                    instrs.add(new BranchInstruction(BL, new Label("p_check_divide_by_zero")));
-                    instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
+//                    instrs.add(new BranchInstruction(BL, new Label("p_check_divide_by_zero")));
+//                    instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
                     instrs.add(new DataProcessingInstruction<>(MOV, r4, r1));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     return INT;
@@ -760,14 +760,14 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                     instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
                     instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
                     instrs.add(new DataProcessingInstruction<>(ADDS, r4, r4, r5));
-                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error")));
+//                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error")));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     return INT;
                 case "-":
                     instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
                     instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
                     instrs.add(new DataProcessingInstruction<>(SUBS, r4, r4, r5));
-                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error")));
+//                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error")));
                     instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
                     return INT;
 //            }
