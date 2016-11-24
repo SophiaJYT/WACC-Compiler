@@ -633,6 +633,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             case "&&":
                 instrs.add(new DataProcessingInstruction<>(AND, r4, r4, r5));
         }
+
         return BOOL;
     }
 
@@ -745,6 +746,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     public Type visitCharLiter(@NotNull CharLiterContext ctx) {
         String text = ctx.getText();
         char charLiter = text.charAt(1);
+        if (charLiter == '\\') {
+            charLiter = text.charAt(2);
+        }
         instrs.add(new DataProcessingInstruction<>(MOV, r4, charLiter));
         return CHAR;
     }
