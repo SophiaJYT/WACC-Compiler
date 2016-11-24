@@ -591,64 +591,28 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         ExprContext e = (ExprContext) ctx.getParent();
         ExprContext arg = e.expr(0);
 
-        //TO-DO: Find out what to return
+        visitExpr(arg);
 
         switch (ctx.getText()) {
             case "!":
-                // Generate not boolean instructions
-                if(arg.boolLiter() != null) {
-                    instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, sp));
-                    instrs.add(new DataProcessingInstruction<>(EOR, r4, r4, 1));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return BOOL;
-                }
-                if (arg.ident() != null) {
-                    visitIdent(arg.ident());
-                    instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4,
-                            new ShiftRegister(SP, currVarPos, null)));
-                    instrs.add(new DataProcessingInstruction<>(EOR, r4, r4, 1));
-                    return BOOL;
-                }
-                return visitExpr(arg);
+                instrs.add(new DataProcessingInstruction<>(EOR, r4, r4, 1));
+                return BOOL;
             case "-":
-                // Generate negative integer instructions
-                if (arg.intLiter() != null) {
-                    Integer value = Integer.parseInt(e.getText());
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, value));
-//                    return new Identifier(AllTypes.INT, e.getText());
-//                    visitIntLiter(arg.intLiter());
-//                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, sp));
-//                    instrs.add(new DataProcessingInstruction<>(RSBS, r4, r4, 0));
-//                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error", null, false)));
-//                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return INT;
-                }
-                return visitExpr(arg);
+                instrs.add(new DataProcessingInstruction<>(RSBS, r4, r4, 0));
             case "len":
-                // Generate len string instructions
-                if (arg.strLiter() != null) {
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, sp));
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, r4));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return INT;
-                }
-                return visitExpr(arg);
+//                // Generate len string instructions
+//                if (arg.strLiter() != null) {
+//                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, sp));
+//                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, r4));
+//                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+//                    return INT;
+//                }
+//                return visitExpr(arg);
+                break;
             case "ord":
-                // Generate ord character instructions
-                if(arg.charLiter() != null) {
-                    instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, sp));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return INT;
-                }
-                return visitExpr(arg);
+                return INT;
             case "chr":
-                // Generate chr integer instructions
-                if(arg.intLiter() != null) {
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, sp));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return CHAR;
-                }
-                return visitExpr(arg);
+                return CHAR;
         }
         return null;
     }
@@ -658,66 +622,18 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         ExprContext e = (ExprContext) ctx.getParent();
         ExprContext arg1 = e.expr(0);
         ExprContext arg2 = e.expr(1);
-        boolean first = false;
 
-        if(arg1.boolLiter() != null && arg2.boolLiter() != null) {
-            switch (ctx.getText()) {
-                case "||":
-                    if(arg2.getText().equals("true") || arg2.getText().equals("false")) {
-                        if(!first) {
-                            first = true;
-                            instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4,
-                                    new ShiftRegister(sp.getType(), 1, null)));
-                        } else {
-                            instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, sp));
-                        }
+        visitExpr(arg2);
+        instrs.add(new DataProcessingInstruction<>(MOV, r5, r4));
+        visitExpr(arg1);
 
-                        if(arg2.getText().equals("true")) {
-                            instrs.add(new DataProcessingInstruction<>(MOV, r5, 1));
-                        } else {
-                            instrs.add(new DataProcessingInstruction<>(MOV, r5, 0));
-                        }
-                    } else if (arg1.getText().equals("true") || arg1.getText().equals("false")) {
-                        if(arg2.getText().equals("true")) {
-                            instrs.add(new DataProcessingInstruction<>(MOV, r4, 1));
-                        } else {
-                            instrs.add(new DataProcessingInstruction<>(MOV, r4, 0));
-                        }
-
-                        if(!first) {
-                            first = true;
-                            instrs.add(new SingleDataTransferInstruction<>(LDRSB, r5,
-                                    new ShiftRegister(sp.getType(), 1, null)));
-                        } else {
-                            instrs.add(new SingleDataTransferInstruction<>(LDRSB, r5, sp));
-                        }
-                    } else {
-                        // a || b
-                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, new ShiftRegister(sp.getType(), 1, null)));
-                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r5, sp));
-                    }
-                    instrs.add(new DataProcessingInstruction<>(ORR, r4, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return BOOL;
-                case "&&":
-                    if(arg2.getText().equals("false")) {
-                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, sp));
-                        instrs.add(new DataProcessingInstruction<>(MOV, r5, 0));
-                    } else if(arg2.getText().equals("true")) {
-                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, sp));
-                        instrs.add(new DataProcessingInstruction<>(MOV, r5, 1));
-                    } else {
-                        // a && b
-                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r4, new ShiftRegister(sp.getType(), 1, null)));
-                        instrs.add(new SingleDataTransferInstruction<>(LDRSB, r5, sp));
-                    }
-                    instrs.add(new DataProcessingInstruction<>(AND, r4, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    // return
-                    return BOOL;
-            }
+        switch (ctx.getText()) {
+            case "||":
+                instrs.add(new DataProcessingInstruction<>(ORR, r4, r4, r5));
+            case "&&":
+                instrs.add(new DataProcessingInstruction<>(AND, r4, r4, r5));
         }
-        return null;
+        return BOOL;
     }
 
     @Override
@@ -726,192 +642,65 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         ExprContext arg1 = e.expr(0);
         ExprContext arg2 = e.expr(1);
 
-//        if(arg1.intLiter() != null && arg2.intLiter() != null) {
-            switch (ctx.getText()) {
-                case "*":
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
-                    instrs.add(new MultiplyInstruction(SMULL, r4, r5, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(CMP, r5, r4, new ShiftInstruction(ASR, 31)));
-//                    instrs.add(new BranchInstruction(BLNE, new Label("p_throw_overflow_error")));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return INT;
-                case "/":
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
-//                    instrs.add(new BranchInstruction(BL, new Label("p_check_divide_by_zero")));
-//                    instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return INT;
-                case "%":
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
-//                    instrs.add(new BranchInstruction(BL, new Label("p_check_divide_by_zero")));
-//                    instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r4, r1));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return INT;
-                case "+":
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
-                    instrs.add(new DataProcessingInstruction<>(ADDS, r4, r4, r5));
-//                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error")));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return INT;
-                case "-":
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, new ShiftRegister(sp.getType(), 4, null)));
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5, sp));
-                    instrs.add(new DataProcessingInstruction<>(SUBS, r4, r4, r5));
-//                    instrs.add(new BranchInstruction(BLVS, new Label("p_throw_overflow_error")));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return INT;
-//            }
-//        }
-        // not sure about the if condition
-//        if((arg1.intLiter() != null && arg2.intLiter() != null) ||
-//                (arg1.charLiter() != null && arg2.charLiter() != null)) {
-//            switch (ctx.getText()) {
-                case ">":
-//                        LDR r4, [sp, #8]
-//                        25              LDR r5, [sp, #4]
-//                        26              CMP r4, r5
-//                        27              MOVGT r4, #1
-//                        28              MOVLE r4, #0
-//                        MOV r0, r4
-                    int offset1 = stackSpace.get(arg1.getText());
-                    int offset2 = stackSpace.get(arg2.getText());
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4,
-                            new ShiftRegister(sp.getType(), offset1, null)));
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5,
-                            new ShiftRegister(sp.getType(), offset2, null)));
-                    instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOVGT, r4, 1));
-                    instrs.add(new DataProcessingInstruction<>(MOVLE, r4, 0));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return BOOL;
-                case ">=":
-//                        LDR r4, [sp, #12]
-//                        27              LDR r5, [sp, #8]
-//                        28              CMP r4, r5
-//                        29              MOVGE r4, #1
-//                        30              MOVLT r4, #0
-//                        31              MOV r0, r4
-                    int offset3 = stackSpace.get(arg1.getText());
-                    int offset4 = stackSpace.get(arg2.getText());
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4,
-                            new ShiftRegister(sp.getType(), offset3, null)));
-                    instrs.add(new SingleDataTransferInstruction<>(LDR, r5,
-                            new ShiftRegister(sp.getType(), offset4, null)));
-                    instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOVGE, r4, 1));
-                    instrs.add(new DataProcessingInstruction<>(MOVLT, r4, 0));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return BOOL;
-                case "<":
-                    int offset5 = stackSpace.get(arg1.getText());
-                    int offset6 = stackSpace.get(arg2.getText());
-                    SingleDataTransferType type = LDRSB;
-                    if(arg1.intLiter() != null && arg2.intLiter() != null) {
-                        type = LDR;
-                    }
-                    instrs.add(new SingleDataTransferInstruction<>(type, r4,
-                            new ShiftRegister(sp.getType(), offset5, null)));
-                    instrs.add(new SingleDataTransferInstruction<>(type, r5,
-                            new ShiftRegister(sp.getType(), offset6, null)));
-                    instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOVLT, r4, 1));
-                    instrs.add(new DataProcessingInstruction<>(MOVGE, r4, 0));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    //int
-//                        LDR r4, [sp, #8]
-//                        LDR r5, [sp, #4]
-//                        CMP r4, r5
-//                        MOVLT r4, #1
-//                        MOVGE r4, #0
-//                        MOV r0, r4
-                    //char
-//                        LDRSB r4, [sp, #2]
-//                        LDRSB r5, [sp, #1]
-//                        CMP r4, r5
-//                        MOVLT r4, #1
-//                        MOVGE r4, #0
-//                        MOV r0, r4
-                    return BOOL;
-                case "<=":
-//                        LDR r4, [sp, #12]
-//                        27              LDR r5, [sp, #8]
-//                        28              CMP r4, r5
-//                        29              MOVLE r4, #1
-//                        30              MOVGT r4, #0
-//                        31              MOV r0, r4
-                    int offset7 = stackSpace.get(arg1.getText());
-                    int offset8 = stackSpace.get(arg2.getText());
-                    SingleDataTransferType type1 = LDRSB;
-                    if(arg1.intLiter() != null && arg2.intLiter() != null) {
-                        type1 = LDR;
-                    }
-                    instrs.add(new SingleDataTransferInstruction<>(type1, r4,
-                            new ShiftRegister(sp.getType(), offset7, null)));
-                    instrs.add(new SingleDataTransferInstruction<>(type1, r5,
-                            new ShiftRegister(sp.getType(), offset8, null)));
-                    instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOVLE, r4, 1));
-                    instrs.add(new DataProcessingInstruction<>(MOVGT, r4, 0));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return BOOL;
-                case "==":
-                    //check case ASSIGNMENT: bool b = a == c !!
-//                        LDR r4, [sp, #9]
-//                        35              LDR r5, [sp, #5]
-//                        36              CMP r4, r5
-//                        37              MOVEQ r4, #1
-//                        38              MOVNE r4, #0
-//                        39              MOV r0, r4
-                    int offset9 = stackSpace.get(arg1.getText());
-                    int offset10 = stackSpace.get(arg2.getText());
-                    SingleDataTransferType type2 = LDRSB;
-                    if(arg1.intLiter() != null && arg2.intLiter() != null) {
-                        type2 = LDR;
-                    }
-                    instrs.add(new SingleDataTransferInstruction<>(type2, r4,
-                            new ShiftRegister(sp.getType(), offset9, null)));
-                    instrs.add(new SingleDataTransferInstruction<>(type2, r5,
-                            new ShiftRegister(sp.getType(), offset10, null)));
-                    instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOVEQ, r4, 1));
-                    instrs.add(new DataProcessingInstruction<>(MOVNE, r4, 0));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return BOOL;
-                case "!=":
-                    //check case ASSIGNMENT: bool b = a == c !!
-//                        LDR r4, [sp, #9]
-//                        35              LDR r5, [sp, #5]
-//                        36              CMP r4, r5
-//                        37              MOVNE r4, #1
-//                        38              MOVEQ r4, #0
-//                        39              MOV r0, r4
-                    int offset11 = stackSpace.get(arg1.getText());
-                    int offset12 = stackSpace.get(arg2.getText());
-                    SingleDataTransferType type3 = LDRSB;
-                    if(arg1.intLiter() != null && arg2.intLiter() != null) {
-                        type3 = LDR;
-                    }
-                    instrs.add(new SingleDataTransferInstruction<>(type3, r4,
-                            new ShiftRegister(sp.getType(), offset11, null)));
-                    instrs.add(new SingleDataTransferInstruction<>(type3, r5,
-                            new ShiftRegister(sp.getType(), offset12, null)));
-                    instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                    instrs.add(new DataProcessingInstruction<>(MOVNE, r4, 1));
-                    instrs.add(new DataProcessingInstruction<>(MOVEQ, r4, 0));
-                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                    return BOOL;
-//            }
-//            return BOOL;
+        visitExpr(arg2);
+        instrs.add(new DataProcessingInstruction<>(MOV, r5, r4));
+        visitExpr(arg1);
+
+        switch (ctx.getText()) {
+            case "*":
+                instrs.add(new MultiplyInstruction(SMULL, r4, r5, r4, r5));
+                instrs.add(new DataProcessingInstruction<>(CMP, r5, r4, new ShiftInstruction(ASR, 31)));
+                return INT;
+            case "/":
+                instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
+                instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
+                instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
+                instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                return INT;
+            case "%":
+                instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
+                instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
+                instrs.add(new DataProcessingInstruction<>(MOV, r4, r1));
+                instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                return INT;
+            case "+":
+                instrs.add(new DataProcessingInstruction<>(ADDS, r4, r4, r5));
+                return INT;
+            case "-":
+                instrs.add(new DataProcessingInstruction<>(SUBS, r4, r4, r5));
+                return INT;
+            case ">":
+                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
+                instrs.add(new DataProcessingInstruction<>(MOVGT, r4, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVLE, r4, 0));
+                return BOOL;
+            case ">=":
+                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
+                instrs.add(new DataProcessingInstruction<>(MOVGE, r4, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVLT, r4, 0));
+                return BOOL;
+            case "<":
+                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
+                instrs.add(new DataProcessingInstruction<>(MOVLT, r4, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVGE, r4, 0));
+                return BOOL;
+            case "<=":
+                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
+                instrs.add(new DataProcessingInstruction<>(MOVLE, r4, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVGT, r4, 0));
+                return BOOL;
+            case "==":
+                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
+                instrs.add(new DataProcessingInstruction<>(MOVEQ, r4, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVNE, r4, 0));
+                return BOOL;
+            case "!=":
+                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
+                instrs.add(new DataProcessingInstruction<>(MOVNE, r4, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVEQ, r4, 0));
+                return BOOL;
         }
         return null;
     }
