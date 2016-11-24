@@ -214,11 +214,17 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         stackSpace.put(varName, offset);
         curr.add(varName, lhs);
 
+        SingleDataTransferType storeType = STR;
+
+        if (lhs.equalsType(BOOL) || lhs.equalsType(CHAR)) {
+            storeType = STRB;
+        }
+
         if(offset == 0) {
-            instrs.add(new SingleDataTransferInstruction<>(STR, r4, sp));
+            instrs.add(new SingleDataTransferInstruction<>(storeType, r4, sp));
         } else {
-            instrs.add(new SingleDataTransferInstruction<>(STR, r4,
-                    new ShiftRegister(sp.getType(), offset, null)));
+            instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
+                    new ShiftRegister(SP, offset, null)));
         }
 
         return null;
@@ -294,8 +300,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         // BL exit
 
         // This works because we know that the expression is an int literal
-        Integer exitCode = Integer.parseInt(ctx.expr().getText());
-        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, exitCode));
+
+        visitExpr(ctx.expr());
         instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
         instrs.add(new BranchInstruction(BL, new Label("exit")));
         return null;
