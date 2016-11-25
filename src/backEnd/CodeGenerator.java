@@ -98,19 +98,17 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         instrs = new ArrayDeque<>();
 
         int oldStack = stackSize;
-        int oldPos = stackPos;
-        stackPos = 0;
-        stackSize = stackVisitor.visit(ctx);
+        int localStack = stackVisitor.visit(ctx);
+        stackSize = localStack + stackPos;
 
         // Add the instructions needed for storing all the local variables in the scope
-        addSubStackInstrs(stackSize);
+        addSubStackInstrs(localStack);
 
         visit(ctx);
 
-        addAddStackInstrs(stackSize);
+        addAddStackInstrs(localStack);
 
         stackSize = oldStack;
-        stackPos = oldPos;
 
         // Add the instructions and change the pointer to the original set of instructions
         old.addAll(instrs);
@@ -187,6 +185,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitFuncDecl(@NotNull FuncDeclContext ctx) {
         String funName = ctx.ident().getText();
+
+        stackPos = stackVisitor.visit(ctx.stat());
+
         if (ctx.paramList() != null) {
             visitParamList(ctx.paramList());
         }
