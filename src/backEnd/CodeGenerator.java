@@ -39,7 +39,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     private Dictionary<Type, Label> printLabels = new Hashtable<>();
 
-    private static int MAX_STACK_OFFSET = 1024;
+    private static int MAX_STACK_OFFSET = 1024, ARRAY_SIZE = 4, PAIR_SIZE = 4;
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
 
     private Register r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, lr, pc;
@@ -86,7 +86,11 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     }
 
     private Label getPrintLabel(Type type) {
-        return new Label("p_print_" + type);
+        String label = type.toString();
+        if (type instanceof ArrayType || type instanceof PairType) {
+            label = "reference";
+        }
+        return new Label("p_print_" + label);
     }
 
     private void visitFunction(Label label, ParserRuleContext ctx) {
@@ -241,6 +245,12 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         }
         if (lhs.equalsType(STRING)) {
             stackPos += STRING_SIZE;
+        }
+        if (lhs instanceof ArrayType) {
+            stackPos += ARRAY_SIZE;
+        }
+        if (lhs instanceof PairType) {
+            stackPos += PAIR_SIZE;
         }
 
         visitAssignRhs(ctx.assignRhs());
@@ -430,6 +440,12 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                 printInstrs.add(new SingleDataTransferInstruction<>(LDREQ, r0, falseLabel));
             }
 
+            if (type instanceof ArrayType || type instanceof PairType) {
+                printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
+                Label refLabel = data.getFormatSpecifier(type);
+                printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, refLabel));
+            }
+
             // Unsure about this instruction
             printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
 
@@ -584,8 +600,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitType(@NotNull TypeContext ctx) {
         if (ctx.type() != null) {
-            // Need to deal with array type somehow.
-            return null;
+            return new ArrayType(visitType(ctx.type()));
         }
         return visitChildren(ctx);
     }
@@ -617,6 +632,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairElemType(@NotNull PairElemTypeContext ctx) {
+        if (ctx.PAIR() != null) {
+            return NULL;
+        }
         return visitChildren(ctx);
     }
 
@@ -902,6 +920,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairLiter(@NotNull PairLiterContext ctx) {
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, 0));
         return null;
     }
 

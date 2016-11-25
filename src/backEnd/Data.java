@@ -3,7 +3,9 @@ package backEnd;
 import backEnd.instructions.Directive;
 import backEnd.instructions.Instruction;
 import backEnd.instructions.Label;
+import frontEnd.ArrayType;
 import frontEnd.Identifier;
+import frontEnd.PairType;
 import frontEnd.Type;
 
 import java.util.ArrayDeque;
@@ -29,7 +31,11 @@ public class Data {
     }
 
     public Label getFormatSpecifier(Type type) {
-        Label msg = formatSpecifiers.get(type);
+        Type checkType = type;
+        if (type instanceof ArrayType || type instanceof PairType) {
+            checkType = ANY;
+        }
+        Label msg = formatSpecifiers.get(checkType);
         if (msg != null) {
             return msg;
         } else {
@@ -109,9 +115,16 @@ public class Data {
 
         if (type.equalsType(CHAR)) {
             String charFormat = " %c\\0";
-            messages.add(new Directive("word " + (charFormat.length() - 1)))    ;
+            messages.add(new Directive("word " + (charFormat.length() - 1)));
             messages.add(new Directive("ascii \"" + charFormat + "\""));
             formatSpecifiers.put(CHAR, msg);
+        }
+
+        if (type instanceof PairType || type instanceof ArrayType) {
+            String refFormat = "%p\\0";
+            messages.add(new Directive("word " + (refFormat.length() - 1)));
+            messages.add(new Directive("ascii\"" + refFormat + "\""));
+            formatSpecifiers.put(NULL, msg);
         }
 
         return msg;
