@@ -530,6 +530,69 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitNewPair(@NotNull NewPairContext ctx) {
+        Type type1 = visitExpr(ctx.expr(0));
+        Type type2 = visitExpr(ctx.expr(1));
+        int size1 = 0;
+        if (type1.equals(AllTypes.CHAR) || type1.equals(AllTypes.BOOL)) {
+            size1 = 1;
+
+        }
+        if (type1 instanceof ArrayType || type1 instanceof PairType
+                || type1.equals(AllTypes.STRING) || type1.equals(AllTypes.INT)) {
+            size1 = 4;
+        }
+        int size2 = 0;
+        if (type2.equals(AllTypes.CHAR) || type2.equals(AllTypes.BOOL)) {
+            size2 = 1;
+
+        }
+        if (type2 instanceof ArrayType || type2 instanceof PairType
+                || type2.equals(AllTypes.STRING) || type2.equals(AllTypes.INT)) {
+            size2 = 4;
+        }
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r0, 8));
+        instrs.add(new BranchInstruction(BL, new Label("malloc")));
+        instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
+        if (type1 == CHAR){
+            instrs.add(new DataProcessingInstruction<>(MOV, r5, ctx.expr(0)));
+        } else {
+            instrs.add(new SingleDataTransferInstruction<>(LDR, r5, ctx.expr(0)));
+        }
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r0, size1));
+        instrs.add(new BranchInstruction(BL, new Label("malloc")));
+        SingleDataTransferType storeDataTransferType = STR;
+        if (type1 == CHAR || type1 == BOOL) {
+            storeDataTransferType = STRB;
+        }
+        instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, r5, r0));
+        instrs.add(new SingleDataTransferInstruction<>(STR, r0, r4));
+
+
+        if (type2 == CHAR){
+            instrs.add(new DataProcessingInstruction<>(MOV, r5, ctx.expr(1)));
+        } else {
+            instrs.add(new SingleDataTransferInstruction<>(LDR, r5, ctx.expr(1)));
+        }
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r0, size2));
+        instrs.add(new BranchInstruction(BL, new Label("malloc")));
+        SingleDataTransferType storeDataTransferType2 = STR;
+        if (type2 == CHAR || type2 == BOOL) {
+            storeDataTransferType2 = STRB;
+        }
+        instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType2, r5, r0));
+
+        instrs.add(new SingleDataTransferInstruction<>(STR, r0, new ShiftRegister(r4.getType(), 4, null)));
+
+//        10              LDR r0, =4
+//        11              BL malloc
+//        12              STR r5, [r0]
+//        13              STR r0, [r4]
+//        14              LDR r5, =3
+//        15              LDR r0, =4
+//        16              BL malloc
+//        17              STR r5, [r0]
+//        18              STR r0, [r4, #4]
+
         return null;
     }
 
@@ -883,6 +946,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairLiter(@NotNull PairLiterContext ctx) {
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r0, 0));
         return null;
     }
 
