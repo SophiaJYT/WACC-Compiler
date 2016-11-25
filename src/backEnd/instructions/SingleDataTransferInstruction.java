@@ -23,7 +23,7 @@ public class SingleDataTransferInstruction<T> implements Instruction {
 
     @Override
     public String toString() {
-        String strAddress = address.toString();
+        String strAddress = "" + address;
         if (address instanceof Integer) {
             strAddress = "=" + address;
         }
