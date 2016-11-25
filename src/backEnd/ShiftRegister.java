@@ -13,6 +13,10 @@ public class ShiftRegister extends Register{
         }
     }
 
+    public Character getExclamation() {
+        return exclamation;
+    }
+
     @Override
     public String toString() {
 //        if (exclamation == null) {
@@ -20,7 +24,6 @@ public class ShiftRegister extends Register{
 //        }
 //        return "[" + super.toString() + ", #" + offset + "]" + exclamation;
         return super.toString() +
-                ((offset == 0) ? "" : ", #" + offset)
-                + ((exclamation == null) ? "" : exclamation);
+                ((offset == 0) ? "" : ", #" + offset);
     }
 }

@@ -1,6 +1,7 @@
 package backEnd.instructions;
 
 import backEnd.Register;
+import backEnd.ShiftRegister;
 
 public class SingleDataTransferInstruction<T> implements Instruction {
 
@@ -28,6 +29,11 @@ public class SingleDataTransferInstruction<T> implements Instruction {
         }
         if (address instanceof Label) {
             strAddress = "=" + ((Label) address).getName();
+        }
+        if (address instanceof ShiftRegister) {
+            Character charVal = ((ShiftRegister) address).getExclamation();
+            strAddress = "[" + address + "]" + ((charVal == null) ? "" : "" + charVal);
+            return type + " " + destination + ", " + strAddress;
         }
         if (address instanceof Register) {
             strAddress = "[" + address + "]";
