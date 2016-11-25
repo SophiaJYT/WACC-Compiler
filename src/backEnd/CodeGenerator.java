@@ -610,6 +610,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                 return BOOL;
             case "-":
                 instrs.add(new DataProcessingInstruction<>(RSBS, r4, r4, 0));
+                return INT;
             case "len":
 //                // Generate len string instructions
 //                if (arg.strLiter() != null) {

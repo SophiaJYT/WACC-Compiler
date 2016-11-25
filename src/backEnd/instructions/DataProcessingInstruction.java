@@ -37,6 +37,8 @@ public class DataProcessingInstruction <T> implements Instruction {
 
         initializeList();
 
+        list.remove(DataProcessingType.CMP);
+
         if (list.contains(type)) {
             throw errorInstr(type);
         }
@@ -44,6 +46,7 @@ public class DataProcessingInstruction <T> implements Instruction {
         if(type == DataProcessingType.ADDS && !(operand instanceof Register)) {
             throw errorInstr(type);
         }
+
         checkOperand(operand);
 
         this.type = type;
@@ -109,7 +112,7 @@ public class DataProcessingInstruction <T> implements Instruction {
     //checks if operand2 is valid
     private void checkOperand(T operand) throws IllegalArgumentException {
         if (!(operand instanceof Integer) && !(operand instanceof Register)
-                &&!(operand instanceof Character)) {
+                &&!(operand instanceof Character) && !(operand instanceof ShiftInstruction)) {
             throw new  IllegalArgumentException("Instr: " + type +
                     " Operand has to be a register or number/expression");
         }
