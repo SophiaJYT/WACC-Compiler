@@ -952,7 +952,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitPairLiter(@NotNull PairLiterContext ctx) {
         instrs.add(new SingleDataTransferInstruction<>(LDR, r4, 0));
-        return null;
+        return NULL;
     }
 
     @Override
