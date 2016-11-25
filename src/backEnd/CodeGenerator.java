@@ -138,6 +138,15 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         }
     }
 
+    private void storeVal(int offset, SingleDataTransferType storeType) {
+        if (offset == 0) {
+            instrs.add(new SingleDataTransferInstruction<>(storeType, r4, sp));
+        } else {
+            instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
+                    new ShiftRegister(SP, offset, null)));
+        }
+    }
+
     //------------------------------VISIT METHODS----------------------------//
 
     @Override
@@ -261,18 +270,23 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         stackSpace.put(varName, offset);
         curr.add(varName, lhs);
 
-        SingleDataTransferType storeType = STR;
+        if (lhs instanceof PairType) {
+            curr.add("fst" + varName, ((PairType) lhs).getLeft());
+            curr.add("snd" + varName, ((PairType) lhs).getRight());
+        }
+
+        SingleDataTransferType storeType = STR, loadType = LDR;
 
         if (lhs.equalsType(BOOL) || lhs.equalsType(CHAR)) {
             storeType = STRB;
+            loadType = LDRSB;
         }
 
-        if(offset == 0) {
-            instrs.add(new SingleDataTransferInstruction<>(storeType, r4, sp));
-        } else {
-            instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
-                    new ShiftRegister(SP, offset, null)));
+        if (ctx.assignRhs().pairElem() != null) {
+            instrs.add(new SingleDataTransferInstruction<>(loadType, r4, r4));
         }
+
+        storeVal(offset, storeType);
 
         return null;
     }
@@ -280,16 +294,33 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitVarAssign(@NotNull VarAssignContext ctx) {
 
-
         Type lhs = visitAssignLhs(ctx.assignLhs());
+        instrs.add(new DataProcessingInstruction<>(MOV, r5, r4));
         // Should theoretically be the same as visitVarInit (not 100% sure yet)
         visitAssignRhs(ctx.assignRhs());
 
 //        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, ctx.assignRhs()));
 
-        //TO-DO: find the size of assign_rhs and decide how to calculate the value of stackPointer
+        // Note: Will NOT work for arrays/pairs yet
 
-        // Note: Will NOT work for arrays/pairs yet 
+        PairElemContext pairElemLhs = ctx.assignLhs().pairElem();
+        if (pairElemLhs != null) {
+            String pairName = pairElemLhs.expr().getText();
+            int offset = 0;
+            if (pairElemLhs.SECOND() != null) {
+                offset = NEWPAIR_SIZE / 2;
+            }
+            instrs.add(new SingleDataTransferInstruction<>(LDR, r5,
+                    offset == 0 ? r5 : new ShiftRegister(R5, offset, null)));
+            instrs.add(new SingleDataTransferInstruction<>(STR, r4,
+                    offset == 0 ? r5 : new ShiftRegister(R5, offset, null)));
+            return null;
+        }
+        PairElemContext pairElemRhs = ctx.assignRhs().pairElem();
+        if (pairElemRhs != null) {
+            instrs.add(new SingleDataTransferInstruction<>(LDR, r4, r4));
+        }
+
         String id = ctx.assignLhs().getText();
         int offset = stackSpace.get(id);// - size_of_assignRhs
 
@@ -298,13 +329,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         if (lhs.equalsType(BOOL) || lhs.equalsType(CHAR)) {
             storeType = STRB;
         }
+//
 
-        if (offset == 0) {
-            instrs.add(new SingleDataTransferInstruction<>(storeType, r4, sp));
-        } else {
-            instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
-                    new ShiftRegister(sp.getType(), offset, null)));
-        }
+        storeVal(offset, storeType);
 
         return null;
     }
@@ -631,18 +658,19 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairElem(@NotNull PairElemContext ctx) {
-//        int offset = 0;
-//        if (ctx.SECOND() != null) {
-//            offset = NEWPAIR_SIZE / 2;
-//        }
-//        Type type = visitExpr(ctx.expr());
-//        SingleDataTransferType loadType = LDR;
-//        if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
-//            loadType = LDRSB
-//        }
-//        instrs.add(new SingleDataTransferInstruction<>(loadType, r4,
-//                new ShiftRegister(SP, offset, null)));
-        return null;
+        int offset = 0;
+        String side = "fst";
+        if (ctx.SECOND() != null) {
+            offset = NEWPAIR_SIZE / 2;
+            side = "snd";
+        }
+        String pairName = ctx.expr().getText();
+        int pairOffset = stackSpace.get(pairName);
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r4,
+                new ShiftRegister(SP, pairOffset, null)));
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r4,
+                offset == 0 ? r4 : new ShiftRegister(R4, offset, null)));
+        return curr.lookUpAll(side + ctx.expr().getText());
     }
 
     @Override
