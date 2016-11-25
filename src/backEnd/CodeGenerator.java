@@ -557,6 +557,69 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitNewPair(@NotNull NewPairContext ctx) {
+        Type type1 = visitExpr(ctx.expr(0));
+        Type type2 = visitExpr(ctx.expr(1));
+        int size1 = 0;
+        if (type1.equals(AllTypes.CHAR) || type1.equals(AllTypes.BOOL)) {
+            size1 = 1;
+
+        }
+        if (type1 instanceof ArrayType || type1 instanceof PairType
+                || type1.equals(AllTypes.STRING) || type1.equals(AllTypes.INT)) {
+            size1 = 4;
+        }
+        int size2 = 0;
+        if (type2.equals(AllTypes.CHAR) || type2.equals(AllTypes.BOOL)) {
+            size2 = 1;
+
+        }
+        if (type2 instanceof ArrayType || type2 instanceof PairType
+                || type2.equals(AllTypes.STRING) || type2.equals(AllTypes.INT)) {
+            size2 = 4;
+        }
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r0, 8));
+        instrs.add(new BranchInstruction(BL, new Label("malloc")));
+        instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
+        if (type1 == CHAR){
+            instrs.add(new DataProcessingInstruction<>(MOV, r5, ctx.expr(0)));
+        } else {
+            instrs.add(new SingleDataTransferInstruction<>(LDR, r5, ctx.expr(0)));
+        }
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r0, size1));
+        instrs.add(new BranchInstruction(BL, new Label("malloc")));
+        SingleDataTransferType storeDataTransferType = STR;
+        if (type1 == CHAR || type1 == BOOL) {
+            storeDataTransferType = STRB;
+        }
+        instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, r5, r0));
+        instrs.add(new SingleDataTransferInstruction<>(STR, r0, r4));
+
+
+        if (type2 == CHAR){
+            instrs.add(new DataProcessingInstruction<>(MOV, r5, ctx.expr(1)));
+        } else {
+            instrs.add(new SingleDataTransferInstruction<>(LDR, r5, ctx.expr(1)));
+        }
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r0, size2));
+        instrs.add(new BranchInstruction(BL, new Label("malloc")));
+        SingleDataTransferType storeDataTransferType2 = STR;
+        if (type2 == CHAR || type2 == BOOL) {
+            storeDataTransferType2 = STRB;
+        }
+        instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType2, r5, r0));
+
+        instrs.add(new SingleDataTransferInstruction<>(STR, r0, new ShiftRegister(r4.getType(), 4, null)));
+
+//        10              LDR r0, =4
+//        11              BL malloc
+//        12              STR r5, [r0]
+//        13              STR r0, [r4]
+//        14              LDR r5, =3
+//        15              LDR r0, =4
+//        16              BL malloc
+//        17              STR r5, [r0]
+//        18              STR r0, [r4, #4]
+
         return null;
     }
 
@@ -799,6 +862,35 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitArrayElem(@NotNull ArrayElemContext ctx) {
+        instrs.add(new DataProcessingInstruction<>(ADD, r5, sp, 0));
+        visitExpr(ctx.expr(0));
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r6, r4));
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r5, r5));
+        instrs.add(new DataProcessingInstruction<>(MOV,r0,r6));
+        instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
+        instrs.add(new BranchInstruction(BL, new Label("p_check_array_bounds")));
+
+//        ADD r5, sp, #0
+//        LDR r6, =0
+//        LDR r5, [r5]
+//        MOV r0, r6
+//        MOV r1, r5
+//        BL p_check_array_bounds
+//        ADD r5, r5, #4
+//        ADD r5, r5, r6, LSL #2
+//        STR r4, [r5]
+//        ADD sp, sp, #4
+//
+//        27        ADD r5, sp, #0
+//        28        LDR r6, =0
+//        29        LDR r5, [r5]
+//        30        MOV r0, r6
+//        31        MOV r1, r5
+//        32        BL p_check_array_bounds
+//        33        ADD r5, r5, #4
+//        34        ADD r5, r5, r6
+//        35        STRB r4, [r5]
+//        36        ADD sp, sp, #4
         return null;
     }
 
@@ -849,7 +941,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         int size = 0;
         if (type.equals(AllTypes.CHAR) || type.equals(AllTypes.BOOL)) {
             size = 1;
-
         }
         if (type instanceof ArrayType || type instanceof PairType
                 || type.equals(AllTypes.STRING) || type.equals(AllTypes.INT)) {
@@ -866,55 +957,21 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         }
 
-        int counter = 0;
-        for (ExprContext e : ctx.expr()) {
-            // what if [2+5, 3]
+        for (int counter = 0; counter < length; counter++) {
+            ExprContext e = ctx.expr(counter);
+            //what if [2+5, 3]
             if(type == CHAR) {
                 instrs.add(new DataProcessingInstruction<>(MOV, r5, e.getText()));
             } else {
                 instrs.add(new SingleDataTransferInstruction<>(LDR, r5, Integer.valueOf(e.getText())));
             }
-            if(counter < length) {
-                instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, r5,
+
+            instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, r5,
                     new ShiftRegister(r4.getType(), offset + counter * size, null)));
-            } else {
-                instrs.add(new SingleDataTransferInstruction<>(STR, r5, r4));
-            }
-                counter++;
-
         }
-
-
-
-//        LDR r5, =5
-//        STR r5, [r4, #4]
-//        LDR r5, =6
-//        STR r5, [r4, #8]
-//        LDR r5, =2
-//        STR r5, [r4]
-//        STR r4, [sp, #4]
-//        LDR r0, =8
-////
-//
-//        MOV r5, #'v'
-//        10		STRB r5, [r4, #4]
-//        11		MOV r5, #'c'
-//        12		STRB r5, [r4, #5]
-//        13		LDR r5, =2
-//        14		STR r5, [r4]
-//        15		STR r4, [sp]
-//        16		ADD sp, sp, #4
-//        17		LDR r0, =0
-//        18		POP {pc}
-
-
-
-
-        // Storing length of array
         instrs.add(new SingleDataTransferInstruction<>(LDR, r5, length));
         instrs.add(new SingleDataTransferInstruction<>(STR, r5, r4));
-        //TO-DO : set offset for sp
-        instrs.add(new SingleDataTransferInstruction<>(STR, r4, sp));
+
         return null;
     }
 
