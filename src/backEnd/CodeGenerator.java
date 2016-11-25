@@ -39,7 +39,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     private Dictionary<Type, Label> printLabels = new Hashtable<>();
 
-    private static int MAX_STACK_OFFSET = 1024, ARRAY_SIZE = 4, PAIR_SIZE = 4;
+    private static int MAX_STACK_OFFSET = 1024, ARRAY_SIZE = 4, PAIR_SIZE = 4, NEWPAIR_SIZE = 8;
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
 
     private Register r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, lr, pc;
@@ -557,68 +557,42 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitNewPair(@NotNull NewPairContext ctx) {
-        Type type1 = visitExpr(ctx.expr(0));
-        Type type2 = visitExpr(ctx.expr(1));
-        int size1 = 0;
-        if (type1.equals(AllTypes.CHAR) || type1.equals(AllTypes.BOOL)) {
-            size1 = 1;
-
-        }
-        if (type1 instanceof ArrayType || type1 instanceof PairType
-                || type1.equals(AllTypes.STRING) || type1.equals(AllTypes.INT)) {
-            size1 = 4;
-        }
-        int size2 = 0;
-        if (type2.equals(AllTypes.CHAR) || type2.equals(AllTypes.BOOL)) {
-            size2 = 1;
-
-        }
-        if (type2 instanceof ArrayType || type2 instanceof PairType
-                || type2.equals(AllTypes.STRING) || type2.equals(AllTypes.INT)) {
-            size2 = 4;
-        }
-        instrs.add(new SingleDataTransferInstruction<>(LDR, r0, 8));
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r0, NEWPAIR_SIZE));
         instrs.add(new BranchInstruction(BL, new Label("malloc")));
-        instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
-        if (type1 == CHAR){
-            instrs.add(new DataProcessingInstruction<>(MOV, r5, ctx.expr(0)));
-        } else {
-            instrs.add(new SingleDataTransferInstruction<>(LDR, r5, ctx.expr(0)));
+        instrs.add(new DataProcessingInstruction<>(MOV, r5, r0));
+
+        Type type1 = visitExpr(ctx.expr(0));
+        int size1 = INT_SIZE;
+        if (type1.equalsType(CHAR) || type1.equalsType(AllTypes.BOOL)) {
+            size1 = CHAR_SIZE;
         }
         instrs.add(new SingleDataTransferInstruction<>(LDR, r0, size1));
         instrs.add(new BranchInstruction(BL, new Label("malloc")));
-        SingleDataTransferType storeDataTransferType = STR;
-        if (type1 == CHAR || type1 == BOOL) {
-            storeDataTransferType = STRB;
+
+        SingleDataTransferType storeType1 = STR;
+        if (type1.equalsType(CHAR) || type1.equalsType(BOOL)) {
+            storeType1 = STRB;
         }
-        instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, r5, r0));
-        instrs.add(new SingleDataTransferInstruction<>(STR, r0, r4));
+
+        instrs.add(new SingleDataTransferInstruction<>(storeType1, r4, r0));
+        instrs.add(new SingleDataTransferInstruction<>(STR, r0, r5));
 
 
-        if (type2 == CHAR){
-            instrs.add(new DataProcessingInstruction<>(MOV, r5, ctx.expr(1)));
-        } else {
-            instrs.add(new SingleDataTransferInstruction<>(LDR, r5, ctx.expr(1)));
+        Type type2 = visitExpr(ctx.expr(0));
+        int size2 = INT_SIZE;
+        if (type2.equalsType(CHAR) || type2.equalsType(AllTypes.BOOL)) {
+            size2 = CHAR_SIZE;
         }
         instrs.add(new SingleDataTransferInstruction<>(LDR, r0, size2));
         instrs.add(new BranchInstruction(BL, new Label("malloc")));
-        SingleDataTransferType storeDataTransferType2 = STR;
-        if (type2 == CHAR || type2 == BOOL) {
-            storeDataTransferType2 = STRB;
+
+        SingleDataTransferType storeType2 = STR;
+        if (type2.equalsType(CHAR) || type2.equalsType(BOOL)) {
+            storeType2 = STRB;
         }
-        instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType2, r5, r0));
 
-        instrs.add(new SingleDataTransferInstruction<>(STR, r0, new ShiftRegister(r4.getType(), 4, null)));
-
-//        10              LDR r0, =4
-//        11              BL malloc
-//        12              STR r5, [r0]
-//        13              STR r0, [r4]
-//        14              LDR r5, =3
-//        15              LDR r0, =4
-//        16              BL malloc
-//        17              STR r5, [r0]
-//        18              STR r0, [r4, #4]
+        instrs.add(new SingleDataTransferInstruction<>(storeType2, r4, r0));
+        instrs.add(new SingleDataTransferInstruction<>(STR, r0, new ShiftRegister(R5, 4, null)));
 
         return null;
     }
@@ -939,7 +913,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         Type type = visitExpr(ctx.expr(0));
         int size = 0;
-        if (type.equals(AllTypes.CHAR) || type.equals(AllTypes.BOOL)) {
+        if (type.equals(CHAR) || type.equals(AllTypes.BOOL)) {
             size = 1;
         }
         if (type instanceof ArrayType || type instanceof PairType
