@@ -39,7 +39,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     private Dictionary<Type, Label> printLabels = new Hashtable<>();
 
-    private static int MAX_STACK_OFFSET = 1024;
+    private static int MAX_STACK_OFFSET = 1024, ARRAY_SIZE = 4, PAIR_SIZE = 4;
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
 
     private Register r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, lr, pc;
@@ -86,7 +86,11 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     }
 
     private Label getPrintLabel(Type type) {
-        return new Label("p_print_" + type);
+        String label = type.toString();
+        if (type instanceof ArrayType || type instanceof PairType) {
+            label = "reference";
+        }
+        return new Label("p_print_" + label);
     }
 
     private void visitFunction(Label label, ParserRuleContext ctx) {
@@ -97,8 +101,18 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         Deque<Instruction> old = instrs;
         instrs = new ArrayDeque<>();
 
+        int oldStack = stackSize;
+        int localStack = stackVisitor.visit(ctx);
+        stackSize = localStack + stackPos;
+
+        // Add the instructions needed for storing all the local variables in the scope
+        addSubStackInstrs(localStack);
 
         visit(ctx);
+
+        addAddStackInstrs(localStack);
+
+        stackSize = oldStack;
 
         // Add the instructions and change the pointer to the original set of instructions
         old.addAll(instrs);
@@ -165,6 +179,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         // Print instructions to standard output
         for (Instruction instr : instrs) {
+//            System.err.println(instr);
             System.out.println(instr);
         }
 
@@ -174,6 +189,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitFuncDecl(@NotNull FuncDeclContext ctx) {
         String funName = ctx.ident().getText();
+
+        stackPos = stackVisitor.visit(ctx.stat()) + 4;
+
         if (ctx.paramList() != null) {
             visitParamList(ctx.paramList());
         }
@@ -197,9 +215,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
             size = CHAR_SIZE;
         }
-        stackPos += size;
         String varName = ctx.ident().getText();
-        stackSpace.put(varName, stackPos);
+        stackPos += size;
+        stackSpace.put(varName, stackPos - size);
         curr.add(varName, type);
         return null;
     }
@@ -229,7 +247,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             stackPos += STRING_SIZE;
         }
         if (lhs instanceof ArrayType) {
-            stackPos += 4;
+            stackPos += ARRAY_SIZE;
+        }
+        if (lhs instanceof PairType) {
+            stackPos += PAIR_SIZE;
         }
 
         visitAssignRhs(ctx.assignRhs());
@@ -419,6 +440,12 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                 printInstrs.add(new SingleDataTransferInstruction<>(LDREQ, r0, falseLabel));
             }
 
+            if (type instanceof ArrayType || type instanceof PairType) {
+                printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
+                Label refLabel = data.getFormatSpecifier(type);
+                printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, refLabel));
+            }
+
             // Unsure about this instruction
             printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
 
@@ -604,6 +631,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         }
         instrs.add(new BranchInstruction(BL, new Label(funName, null, true)));
         instrs.add(new DataProcessingInstruction<>(ADD, sp, sp, funcSize));
+        instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
         funcSize = 0;
         return null;
     }
@@ -667,6 +695,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairElemType(@NotNull PairElemTypeContext ctx) {
+        if (ctx.PAIR() != null) {
+            return NULL;
+        }
         return visitChildren(ctx);
     }
 
@@ -928,7 +959,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         for (int counter = 0; counter < length; counter++) {
             ExprContext e = ctx.expr(counter);
-             //what if [2+5, 3]
+            //what if [2+5, 3]
             if(type == CHAR) {
                 instrs.add(new DataProcessingInstruction<>(MOV, r5, e.getText()));
             } else {
@@ -946,7 +977,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairLiter(@NotNull PairLiterContext ctx) {
-        instrs.add(new SingleDataTransferInstruction<>(LDR, r0, 0));
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, 0));
         return null;
     }
 
