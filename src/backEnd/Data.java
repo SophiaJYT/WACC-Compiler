@@ -33,7 +33,7 @@ public class Data {
     public Label getFormatSpecifier(Type type) {
         Type checkType = type;
         if (type instanceof ArrayType || type instanceof PairType) {
-            checkType = ANY;
+            checkType = NULL;
         }
         Label msg = formatSpecifiers.get(checkType);
         if (msg != null) {
