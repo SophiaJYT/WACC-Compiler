@@ -97,8 +97,17 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         Deque<Instruction> old = instrs;
         instrs = new ArrayDeque<>();
 
+        int oldStack = stackSize;
+        stackSize = stackVisitor.visit(ctx);
+
+        // Add the instructions needed for storing all the local variables in the scope
+        addSubStackInstrs(stackSize);
 
         visit(ctx);
+
+        addAddStackInstrs(stackSize);
+
+        stackSize = oldStack;
 
         // Add the instructions and change the pointer to the original set of instructions
         old.addAll(instrs);
@@ -165,7 +174,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         // Print instructions to standard output
         for (Instruction instr : instrs) {
-//            System.err.println(instr);
+            System.err.println(instr);
             System.out.println(instr);
         }
 
