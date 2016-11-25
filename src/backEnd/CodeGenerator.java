@@ -44,13 +44,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     private Register r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, lr, pc;
 
-    private int stackPointer = 1024;
-
     public CodeGenerator() {
-        initialiseRegisters();
-    }
-
-    private void initialiseRegisters() {
         r0 = new Register(R0);
         r1 = new Register(R1);
         r2 = new Register(R2);
@@ -70,15 +64,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     }
 
     //-------------------------UTILITY FUNCTIONS-----------------------------//
-
-
-    private int getStackSize(List<Integer> stackSpace) {
-        int result = 0;
-        for (int space : stackSpace) {
-            result += space;
-        }
-        return result;
-    }
 
 
     private Label getNonFunctionLabel() {
@@ -138,13 +123,20 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         }
     }
 
+    private void storeResult(int offset, SingleDataTransferType storeType) {
+        if (offset == 0) {
+            instrs.add(new SingleDataTransferInstruction<>(storeType, r4, sp));
+        } else {
+            instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
+                    new ShiftRegister(SP, offset, null)));
+        }
+    }
+
     //------------------------------VISIT METHODS----------------------------//
 
     @Override
     public Type visitProg(@NotNull ProgContext ctx) {
-        // .data (only created when we have a string literal or read/print(ln) statements)
-        // (need to generate string literals here)
-
+        // Add starting directives for program
         instrs.add(new Directive("text"));
         instrs.add(new Directive("global main"));
 
@@ -179,7 +171,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         // Print instructions to standard output
         for (Instruction instr : instrs) {
-//            System.err.println(instr);
             System.out.println(instr);
         }
 
@@ -230,8 +221,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitVarInit(@NotNull VarInitContext ctx) {
-
-        //instrs.add(new SingleDataTransferInstruction<>(LDR, r4, ctx.assignRhs()));
         Type lhs = visitType(ctx.type());
 
         if (lhs.equalsType(INT)) {
@@ -255,8 +244,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         visitAssignRhs(ctx.assignRhs());
 
-        //TO-DO: find the size of assign_rhs and decide how to calculate the value of stackPointer
-        int offset = stackSize - stackPos;// - size_of_assignRhs
+        int offset = stackSize - stackPos;
         String varName = ctx.ident().getText();
         stackSpace.put(varName, offset);
         curr.add(varName, lhs);
@@ -267,12 +255,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             storeType = STRB;
         }
 
-        if(offset == 0) {
-            instrs.add(new SingleDataTransferInstruction<>(storeType, r4, sp));
-        } else {
-            instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
-                    new ShiftRegister(SP, offset, null)));
-        }
+        storeResult(offset, storeType);
 
         return null;
     }
@@ -280,18 +263,11 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitVarAssign(@NotNull VarAssignContext ctx) {
 
-
         Type lhs = visitAssignLhs(ctx.assignLhs());
-        // Should theoretically be the same as visitVarInit (not 100% sure yet)
         visitAssignRhs(ctx.assignRhs());
 
-//        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, ctx.assignRhs()));
-
-        //TO-DO: find the size of assign_rhs and decide how to calculate the value of stackPointer
-
-        // Note: Will NOT work for arrays/pairs yet 
         String id = ctx.assignLhs().getText();
-        int offset = stackSpace.get(id);// - size_of_assignRhs
+        int offset = stackSpace.get(id);
 
         SingleDataTransferType storeType = STR;
 
@@ -299,23 +275,17 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             storeType = STRB;
         }
 
-        if (offset == 0) {
-            instrs.add(new SingleDataTransferInstruction<>(storeType, r4, sp));
-        } else {
-            instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
-                    new ShiftRegister(sp.getType(), offset, null)));
-        }
+        storeResult(offset, storeType);
 
         return null;
+
     }
 
     @Override
     public Type visitReadStat(@NotNull ReadStatContext ctx) {
-        // Need to branch to a "BL read" statement, depending on the type of ctx.assignLhs()
         Type type = visitAssignLhs(ctx.assignLhs());
 
         Label readLabel = new Label("p_read_" + type);
-        // TODO: Check this is valid
         instrs.add(new DataProcessingInstruction<>(ADD, r4, sp, currVarPos));
         instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
         instrs.add(new BranchInstruction(BL, readLabel));
@@ -350,12 +320,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitExitStat(@NotNull ExitStatContext ctx) {
-        // LDR r4, =(int_liter)
-        // MOV r0, r4
-        // BL exit
-
-        // This works because we know that the expression is an int literal
-
         visitExpr(ctx.expr());
         instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
         instrs.add(new BranchInstruction(BL, new Label("exit")));
@@ -401,78 +365,64 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         if (type.equalsType(CHAR)) {
             instrs.add(new BranchInstruction(BL, new Label("putchar")));
-        } else {
-            instrs.add(new BranchInstruction(BL, printLabel));
-
-            // Check if the print label already exists
-            if (printLabels.get(type) != null) {
-                if (isPrintLn) {
-                    visitPrintLn();
-                }
-                return null;
+            if (isPrintLn) {
+                visitPrintLn();
             }
-
-            printLabels.put(type, printLabel);
-            printInstrs.add(printLabel);
-            printInstrs.add(new StackInstruction(PUSH, lr));
-
-            if (type.equalsType(INT)) {
-                Label formatSpecifier = data.getFormatSpecifier(INT);
-                printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
-                printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
-            }
-
-            if (type.equalsType(STRING)) {
-                Label formatSpecifier = data.getFormatSpecifier(STRING);
-                printInstrs.add(new SingleDataTransferInstruction<>(LDR, r1, r0));
-
-                // Unsure about this instruction
-                printInstrs.add(new DataProcessingInstruction<>(ADD, r2, r0, 4));
-
-                printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
-            }
-
-            if (type.equalsType(BOOL)) {
-                printInstrs.add(new DataProcessingInstruction<>(CMP, r0, 0));
-                Label trueLabel = data.getMessageLocation(new Identifier(BOOL, "true\\0"));
-                printInstrs.add(new SingleDataTransferInstruction<>(LDRNE, r0, trueLabel));
-                Label falseLabel = data.getMessageLocation(new Identifier(BOOL, "false\\0"));
-                printInstrs.add(new SingleDataTransferInstruction<>(LDREQ, r0, falseLabel));
-            }
-
-            if (type instanceof ArrayType || type instanceof PairType) {
-                printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
-                Label refLabel = data.getFormatSpecifier(type);
-                printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, refLabel));
-            }
-
-            // Unsure about this instruction
-            printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
-
-            printInstrs.add(new BranchInstruction(BL, new Label("printf")));
-            printInstrs.add(new DataProcessingInstruction<>(MOV, r0, 0));
-            printInstrs.add(new BranchInstruction(BL, new Label("fflush")));
-            printInstrs.add(new StackInstruction(POP, pc));
+            return null;
         }
 
-        if (isPrintLn) {
-            visitPrintLn();
+        instrs.add(new BranchInstruction(BL, printLabel));
+
+        // Check if the print label already exists
+        if (printLabels.get(type) != null) {
+            if (isPrintLn) {
+                visitPrintLn();
+            }
+            return null;
         }
+
+        printLabels.put(type, printLabel);
+        printInstrs.add(printLabel);
+        printInstrs.add(new StackInstruction(PUSH, lr));
+
+        if (type.equalsType(INT)) {
+            Label formatSpecifier = data.getFormatSpecifier(INT);
+            printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
+            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
+        }
+
+        if (type.equalsType(STRING)) {
+            Label formatSpecifier = data.getFormatSpecifier(STRING);
+            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r1, r0));
+            printInstrs.add(new DataProcessingInstruction<>(ADD, r2, r0, 4));
+            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
+        }
+
+        if (type.equalsType(BOOL)) {
+            printInstrs.add(new DataProcessingInstruction<>(CMP, r0, 0));
+            Label trueLabel = data.getMessageLocation(new Identifier(BOOL, "true\\0"));
+            printInstrs.add(new SingleDataTransferInstruction<>(LDRNE, r0, trueLabel));
+            Label falseLabel = data.getMessageLocation(new Identifier(BOOL, "false\\0"));
+            printInstrs.add(new SingleDataTransferInstruction<>(LDREQ, r0, falseLabel));
+        }
+
+        if (type instanceof ArrayType || type instanceof PairType) {
+            printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
+            Label refLabel = data.getFormatSpecifier(type);
+            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, refLabel));
+        }
+
+        printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
+        printInstrs.add(new BranchInstruction(BL, new Label("printf")));
+        printInstrs.add(new DataProcessingInstruction<>(MOV, r0, 0));
+        printInstrs.add(new BranchInstruction(BL, new Label("fflush")));
+        printInstrs.add(new StackInstruction(POP, pc));
 
         return null;
     }
 
     @Override
     public Type visitIfStat(@NotNull IfStatContext ctx) {
-        // visitExpr(ctx.expr());
-        // CMP r4, #0
-        // BEQ else_label
-        // visit(ctx.stat(0));
-        // B fi_label
-        // else_label:
-        // visit(ctx.stat(1));
-        // fi_label:
-
         Label elseLabel = getNonFunctionLabel();
         Label fiLabel = getNonFunctionLabel();
         visitExpr(ctx.expr());
@@ -488,14 +438,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitWhileStat(@NotNull WhileStatContext ctx) {
-        // B exit_label
-        // loop_label:
-        //   visit(ctx.stat());
-        // exit_label:
-        //   visitExpr(ctx.expr());
-        //   CMP r4, #1
-        //   BEQ loop_label
-
         Label exitLabel = getNonFunctionLabel();
         Label loopLabel = getNonFunctionLabel();
         instrs.add(new BranchInstruction(B, exitLabel));
@@ -511,8 +453,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitBeginEnd(@NotNull BeginEndContext ctx) {
         // Create new scopes for current symbol table and stack space
-//        List<Integer> old = stackSpace;
-//        stackSpace = new ArrayList<>();
         curr = new SymbolTable<>(curr);
         Dictionary<String, Integer> oldStack = stackSpace;
         stackSpace = new Hashtable<>();
@@ -531,10 +471,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         stackSize = oldSize;
         curr = curr.encSymbolTable;
 
-//        generateInstrs(ctx);
-
-        // Exit the current scope for stack space and current symbol table
-//        stackSpace = old;
         return null;
     }
 
@@ -551,7 +487,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitAssignRhs(@NotNull AssignRhsContext ctx) {
-        // visitChildren(ctx);
         return visitChildren(ctx);
     }
 
@@ -563,7 +498,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         Type type1 = visitExpr(ctx.expr(0));
         int size1 = INT_SIZE;
-        if (type1.equalsType(CHAR) || type1.equalsType(AllTypes.BOOL)) {
+        if (type1.equalsType(CHAR) || type1.equalsType(BOOL)) {
             size1 = CHAR_SIZE;
         }
         instrs.add(new SingleDataTransferInstruction<>(LDR, r0, size1));
@@ -580,7 +515,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         Type type2 = visitExpr(ctx.expr(0));
         int size2 = INT_SIZE;
-        if (type2.equalsType(CHAR) || type2.equalsType(AllTypes.BOOL)) {
+        if (type2.equalsType(CHAR) || type2.equalsType(BOOL)) {
             size2 = CHAR_SIZE;
         }
         instrs.add(new SingleDataTransferInstruction<>(LDR, r0, size2));
@@ -631,17 +566,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairElem(@NotNull PairElemContext ctx) {
-//        int offset = 0;
-//        if (ctx.SECOND() != null) {
-//            offset = NEWPAIR_SIZE / 2;
-//        }
-//        Type type = visitExpr(ctx.expr());
-//        SingleDataTransferType loadType = LDR;
-//        if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
-//            loadType = LDRSB
-//        }
-//        instrs.add(new SingleDataTransferInstruction<>(loadType, r4,
-//                new ShiftRegister(SP, offset, null)));
         return null;
     }
 
@@ -675,7 +599,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairType(@NotNull PairTypeContext ctx) {
-        return new PairType(visitPairElemType(ctx.pairElemType(0)),visitPairElemType(ctx.pairElemType(1)));
+        Type lhs = visitPairElemType(ctx.pairElemType(0));
+        Type rhs = visitPairElemType(ctx.pairElemType(1));
+        return new PairType(lhs, rhs);
     }
 
     @Override
@@ -702,7 +628,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitBracketExpr(@NotNull BracketExprContext ctx) {
-        // Need to have more priority on bracketed expressions.
         visitExpr(ctx.expr());
         return null;
     }
@@ -722,14 +647,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                 instrs.add(new DataProcessingInstruction<>(RSBS, r4, r4, 0));
                 return INT;
             case "len":
-//                // Generate len string instructions
-//                if (arg.strLiter() != null) {
-//                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, sp));
-//                    instrs.add(new SingleDataTransferInstruction<>(LDR, r4, r4));
-//                    instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-//                    return INT;
-//                }
-//                return visitExpr(arg);
                 break;
             case "ord":
                 return INT;
@@ -832,8 +749,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitIdent(@NotNull IdentContext ctx) {
-        // Need to check this
-        //return curr.lookUpAll(ctx.getText());
         currVarPos = stackSpace.get(ctx.getText());
         Type type = curr.lookUpAll(ctx.getText());
         SingleDataTransferType loadRegType = LDR;
@@ -853,29 +768,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         instrs.add(new SingleDataTransferInstruction<>(LDR, r5, r5));
         instrs.add(new DataProcessingInstruction<>(MOV,r0,r6));
         instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
-        instrs.add(new BranchInstruction(BL, new Label("p_check_array_bounds")));
-
-//        ADD r5, sp, #0
-//        LDR r6, =0
-//        LDR r5, [r5]
-//        MOV r0, r6
-//        MOV r1, r5
-//        BL p_check_array_bounds
-//        ADD r5, r5, #4
-//        ADD r5, r5, r6, LSL #2
-//        STR r4, [r5]
-//        ADD sp, sp, #4
-//
-//        27        ADD r5, sp, #0
-//        28        LDR r6, =0
-//        29        LDR r5, [r5]
-//        30        MOV r0, r6
-//        31        MOV r1, r5
-//        32        BL p_check_array_bounds
-//        33        ADD r5, r5, #4
-//        34        ADD r5, r5, r6
-//        35        STRB r4, [r5]
-//        36        ADD sp, sp, #4
+    
         return null;
     }
 
@@ -924,13 +817,26 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         Type type = visitExpr(ctx.expr(0));
         int size = 0;
-        if (type.equals(CHAR) || type.equals(AllTypes.BOOL)) {
-            size = 1;
+
+        if (type.equalsType(INT)) {
+            size = INT_SIZE;
         }
-        if (type instanceof ArrayType || type instanceof PairType
-                || type.equals(AllTypes.STRING) || type.equals(AllTypes.INT)) {
-            size = 4;
+        if (type.equalsType(BOOL)) {
+            size = BOOL_SIZE;
         }
+        if (type.equalsType(CHAR)) {
+            size = CHAR_SIZE;
+        }
+        if (type.equalsType(STRING)) {
+            size = STRING_SIZE;
+        }
+        if (type instanceof ArrayType) {
+            size = ARRAY_SIZE;
+        }
+        if (type instanceof PairType) {
+            size = PAIR_SIZE;
+        }
+
         int reserve = 4 + length * size;
         instrs.add(new SingleDataTransferInstruction<>(LDR, r0, reserve));
         instrs.add(new BranchInstruction(BL, new Label("malloc")));
@@ -939,20 +845,17 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         SingleDataTransferType storeDataTransferType = STR;
         if (type == CHAR || type == BOOL) {
             storeDataTransferType = STRB;
-
         }
 
-        for (int counter = 0; counter < length; counter++) {
-            ExprContext e = ctx.expr(counter);
-            //what if [2+5, 3]
-            if(type == CHAR) {
+        for (int count = 0; count < length; count++) {
+            ExprContext e = ctx.expr(count);
+            if (type == CHAR) {
                 instrs.add(new DataProcessingInstruction<>(MOV, r5, e.getText()));
             } else {
                 instrs.add(new SingleDataTransferInstruction<>(LDR, r5, Integer.valueOf(e.getText())));
             }
-
             instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, r5,
-                    new ShiftRegister(r4.getType(), offset + counter * size, null)));
+                    new ShiftRegister(r4.getType(), offset + count * size, null)));
         }
         instrs.add(new SingleDataTransferInstruction<>(LDR, r5, length));
         instrs.add(new SingleDataTransferInstruction<>(STR, r5, r4));
