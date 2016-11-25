@@ -480,7 +480,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         stackSpace = new Hashtable<>();
         int oldSize = stackSize;
 
-        stackSize = stackVisitor.visit(ctx.stat());
+        Integer size = stackVisitor.visit(ctx.stat());
+        stackSize = (size == null) ? 0 : size;
 
         addSubStackInstrs(stackSize);
 
