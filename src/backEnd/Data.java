@@ -3,7 +3,6 @@ package backEnd;
 import backEnd.instructions.Directive;
 import backEnd.instructions.Instruction;
 import backEnd.instructions.Label;
-import frontEnd.AllTypes;
 import frontEnd.Identifier;
 import frontEnd.Type;
 
@@ -11,6 +10,8 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Dictionary;
 import java.util.Hashtable;
+
+import static frontEnd.AllTypes.*;
 
 public class Data {
 
@@ -28,7 +29,12 @@ public class Data {
     }
 
     public Label getFormatSpecifier(Type type) {
-        return formatSpecifiers.get(type);
+        Label msg = formatSpecifiers.get(type);
+        if (msg != null) {
+            return msg;
+        } else {
+            return addFormatSpecifier(type);
+        }
     }
 
     private Label addMessage(Identifier ident) {
@@ -38,7 +44,7 @@ public class Data {
 
         Type exprType = ident.getType();
 
-        if (exprType.equalsType(AllTypes.INT) && !hasIntMessage) {
+        if (exprType.equalsType(INT) && !hasIntMessage) {
             hasIntMessage = true;
             addFormatSpecifiers();
             return null;
@@ -47,7 +53,7 @@ public class Data {
         Label msg = new Label("msg_", messageIndex++, false);
         String liter = ident.getVal();
 
-        if (exprType.equalsType(AllTypes.STRING)) {
+        if (exprType.equalsType(STRING)) {
             int size = liter.length();
             if (liter.equals("\\0")) {
                 size--;
@@ -61,7 +67,7 @@ public class Data {
             }
         }
 
-        if (exprType.equalsType(AllTypes.BOOL)) {
+        if (exprType.equalsType(BOOL)) {
             messages.add(msg);
             messages.add(new Directive("word " + (liter.length() - 1)));
             messages.add(new Directive("ascii \"" + liter + "\""));
@@ -83,44 +89,41 @@ public class Data {
         }
     }
 
-    public void addFormatSpecifier(Type type) {
+    public Label addFormatSpecifier(Type type) {
         Label msg = new Label("msg_", messageIndex++, false);
         messages.add(msg);
 
-        // Check if specifier already added
-        if (formatSpecifiers.get(type) != null) {
-            return;
-        }
-
-        if (type.equalsType(AllTypes.INT)) {
+        if (type.equalsType(INT)) {
             String intFormat = "%d\\0";
             messages.add(new Directive("word " + (intFormat.length() - 1)));
             messages.add(new Directive("ascii \"" + intFormat + "\""));
-            formatSpecifiers.put(AllTypes.INT, msg);
+            formatSpecifiers.put(INT, msg);
         }
 
-        if (type.equalsType(AllTypes.STRING)) {
+        if (type.equalsType(STRING)) {
             String strFormat = "%.*s\\0";
             messages.add(new Directive("word " + (strFormat.length() - 1)));
             messages.add(new Directive("ascii \"" + strFormat + "\""));
-            formatSpecifiers.put(AllTypes.STRING, msg);
+            formatSpecifiers.put(STRING, msg);
         }
 
-        if (type.equalsType(AllTypes.CHAR)) {
+        if (type.equalsType(CHAR)) {
             String charFormat = " %c\\0";
             messages.add(new Directive("word " + (charFormat.length() - 1)))    ;
             messages.add(new Directive("ascii \"" + charFormat + "\""));
-            formatSpecifiers.put(AllTypes.CHAR, msg);
+            formatSpecifiers.put(CHAR, msg);
         }
+
+        return msg;
 
     }
 
     private void addFormatSpecifiers() {
-        if (hasStringMessage && getFormatSpecifier(AllTypes.STRING) == null) {
-            addFormatSpecifier(AllTypes.STRING);
+        if (hasStringMessage && getFormatSpecifier(STRING) == null) {
+            addFormatSpecifier(STRING);
         }
-        if (hasIntMessage && getFormatSpecifier(AllTypes.INT) == null) {
-            addFormatSpecifier(AllTypes.INT);
+        if (hasIntMessage && getFormatSpecifier(INT) == null) {
+            addFormatSpecifier(INT);
         }
     }
 

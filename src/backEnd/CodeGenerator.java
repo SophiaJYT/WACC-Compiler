@@ -165,6 +165,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         // Print instructions to standard output
         for (Instruction instr : instrs) {
+//            System.err.println(instr);
             System.out.println(instr);
         }
 
