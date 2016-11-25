@@ -92,11 +92,16 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         instrs.add(label);
         instrs.add(new StackInstruction(PUSH, lr));
 
-        generateInstrs(ctx);
+        // Store instructions in scope in an empty deque
+        Deque<Instruction> old = instrs;
+        instrs = new ArrayDeque<>();
 
-        if (label.getName().equals("main")) {
-            instrs.add(new SingleDataTransferInstruction<>(LDR, r0, 0));
-        }
+
+        visit(ctx);
+
+        // Add the instructions and change the pointer to the original set of instructions
+        old.addAll(instrs);
+        instrs = old;
 
         instrs.add(new StackInstruction(POP, pc));
         instrs.add(new Directive("ltorg"));
@@ -116,19 +121,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             addAddStackInstrs(size - MAX_STACK_OFFSET);
             instrs.add(new DataProcessingInstruction<>(ADD, sp, sp, spaceReserved));
         }
-    }
-
-    private void generateInstrs(ParserRuleContext ctx) {
-        // Store instructions in scope in an empty deque
-        Deque<Instruction> old = instrs;
-        instrs = new ArrayDeque<>();
-
-
-        visit(ctx);
-
-        // Add the instructions and change the pointer to the original set of instructions
-        old.addAll(instrs);
-        instrs = old;
     }
 
     //------------------------------VISIT METHODS----------------------------//
@@ -180,19 +172,34 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitFuncDecl(@NotNull FuncDeclContext ctx) {
-        // Need to change to function symbol table when visiting the function
         String funName = ctx.ident().getText();
+        if (ctx.paramList() != null) {
+            visitParamList(ctx.paramList());
+        }
         visitFunction(new Label(funName, null, true), ctx.stat());
+        stackPos = 0;
         return null;
     }
 
     @Override
     public Type visitParamList(@NotNull ParamListContext ctx) {
+        for (ParamContext param : ctx.param()) {
+            visitParam(param);
+        }
         return null;
     }
 
     @Override
     public Type visitParam(@NotNull ParamContext ctx) {
+        Type type = visitType(ctx.type());
+        int size = STRING_SIZE;
+        if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
+            size = CHAR_SIZE;
+        }
+        stackPos += size;
+        String varName = ctx.ident().getText();
+        stackSpace.put(varName, stackPos);
+        curr.add(varName, type);
         return null;
     }
 
@@ -524,11 +531,29 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitCallFunc(@NotNull CallFuncContext ctx) {
+        String funName = ctx.ident().getText();
+        if (ctx.argList() != null) {
+            visitArgList(ctx.argList());
+        }
+        instrs.add(new BranchInstruction(BL, new Label(funName, null, true)));
         return null;
     }
 
     @Override
     public Type visitArgList(@NotNull ArgListContext ctx) {
+        List<ExprContext> exprs = ctx.expr();
+        for (int i = exprs.size() - 1; i >= 0; i--) {
+            ExprContext e = exprs.get(i);
+            Type type = visitExpr(e);
+            SingleDataTransferType storeType = STR;
+            int size = INT_SIZE;
+            if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
+                storeType = STRB;
+                size = BOOL_SIZE;
+            }
+            instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
+                    new ShiftRegister(SP, -size, '!')));
+        }
         return null;
     }
 
