@@ -26,6 +26,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     private StackVisitor stackVisitor = new StackVisitor();
     private Dictionary<String, Integer> stackSpace = new Hashtable<>();
     private int stackSize = 0, stackPos = 0, currVarPos = 0;
+    private int funcSize = 0;
 
     private Deque<Instruction> instrs = new ArrayDeque<>();
     private Deque<Instruction> printInstrs = new ArrayDeque<>();
@@ -536,6 +537,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             visitArgList(ctx.argList());
         }
         instrs.add(new BranchInstruction(BL, new Label(funName, null, true)));
+        instrs.add(new DataProcessingInstruction<>(ADD, sp, sp, funcSize));
+        funcSize = 0;
         return null;
     }
 
@@ -551,6 +554,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                 storeType = STRB;
                 size = BOOL_SIZE;
             }
+            funcSize += size;
             instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
                     new ShiftRegister(SP, -size, '!')));
         }
