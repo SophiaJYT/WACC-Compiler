@@ -84,7 +84,7 @@ public class StackVisitor extends WaccParserBaseVisitor<Integer> {
 
     @Override
     public Integer visitArrayType(@NotNull ArrayTypeContext ctx) {
-        return null;
+        return ARRAY_SIZE;
     }
 
     @Override

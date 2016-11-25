@@ -592,17 +592,17 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitArrayType(@NotNull ArrayTypeContext ctx) {
-        return null;
+        return new ArrayType(visitType(ctx.type()));
     }
 
     @Override
     public Type visitPairType(@NotNull PairTypeContext ctx) {
-        return null;
+        return new PairType(visitPairElemType(ctx.pairElemType(0)),visitPairElemType(ctx.pairElemType(1)));
     }
 
     @Override
     public Type visitPairElemType(@NotNull PairElemTypeContext ctx) {
-        return null;
+        return visitChildren(ctx);
     }
 
     @Override
@@ -809,11 +809,78 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     public Type visitArrayLiter(@NotNull ArrayLiterContext ctx) {
         int length = 0;
         for (ExprContext e : ctx.expr()) {
-            // TODO: Store array elements in symbol table and total heap space
+            length++;
         }
+
+        Type type = visitExpr(ctx.expr(0));
+        int size = 0;
+        if (type.equals(AllTypes.CHAR) || type.equals(AllTypes.BOOL)) {
+            size = 1;
+
+        }
+        if (type instanceof ArrayType || type instanceof PairType
+                || type.equals(AllTypes.STRING) || type.equals(AllTypes.INT)) {
+            size = 4;
+        }
+        int reserve = 4 + length * size;
+        instrs.add(new SingleDataTransferInstruction<>(LDR, r0, reserve));
+        instrs.add(new BranchInstruction(BL, new Label("malloc")));
+        instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
+        int offset = 4;
+        SingleDataTransferType storeDataTransferType = STR;
+        if (type == CHAR || type == BOOL) {
+            storeDataTransferType = STRB;
+
+        }
+
+        int counter = 0;
+        for (ExprContext e : ctx.expr()) {
+            // what if [2+5, 3]
+            if(type == CHAR) {
+                instrs.add(new DataProcessingInstruction<>(MOV, r5, e.getText()));
+            } else {
+                instrs.add(new SingleDataTransferInstruction<>(LDR, r5, Integer.valueOf(e.getText())));
+            }
+            if(counter < length) {
+                instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, r5,
+                    new ShiftRegister(r4.getType(), offset + counter * size, null)));
+            } else {
+                instrs.add(new SingleDataTransferInstruction<>(STR, r5, r4));
+            }
+                counter++;
+
+        }
+
+
+
+//        LDR r5, =5
+//        STR r5, [r4, #4]
+//        LDR r5, =6
+//        STR r5, [r4, #8]
+//        LDR r5, =2
+//        STR r5, [r4]
+//        STR r4, [sp, #4]
+//        LDR r0, =8
+////
+//
+//        MOV r5, #'v'
+//        10		STRB r5, [r4, #4]
+//        11		MOV r5, #'c'
+//        12		STRB r5, [r4, #5]
+//        13		LDR r5, =2
+//        14		STR r5, [r4]
+//        15		STR r4, [sp]
+//        16		ADD sp, sp, #4
+//        17		LDR r0, =0
+//        18		POP {pc}
+
+
+
+
         // Storing length of array
         instrs.add(new SingleDataTransferInstruction<>(LDR, r5, length));
         instrs.add(new SingleDataTransferInstruction<>(STR, r5, r4));
+        //TO-DO : set offset for sp
         instrs.add(new SingleDataTransferInstruction<>(STR, r4, sp));
         return null;
     }
