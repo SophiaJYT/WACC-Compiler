@@ -186,7 +186,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     public Type visitFuncDecl(@NotNull FuncDeclContext ctx) {
         String funName = ctx.ident().getText();
 
-        stackPos = stackVisitor.visit(ctx.stat());
+        stackPos = stackVisitor.visit(ctx.stat()) + 4;
 
         if (ctx.paramList() != null) {
             visitParamList(ctx.paramList());
@@ -211,9 +211,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
             size = CHAR_SIZE;
         }
-        stackPos += size;
         String varName = ctx.ident().getText();
-        stackSpace.put(varName, stackPos);
+        stackPos += size;
+        stackSpace.put(varName, stackPos - size);
         curr.add(varName, type);
         return null;
     }
