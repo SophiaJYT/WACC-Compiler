@@ -28,6 +28,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     private int stackSize = 0, stackPos = 0, currVarPos = 0;
     private int funcSize = 0;
 
+    private Stack<Register> freeRegisters = new Stack<>();
+
     private Deque<Instruction> instrs = new ArrayDeque<>();
     private Deque<Instruction> printInstrs = new ArrayDeque<>();
     private int labelIndex = 0;
@@ -42,9 +44,29 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     private static int MAX_STACK_OFFSET = 1024, ARRAY_SIZE = 4, PAIR_SIZE = 4, NEWPAIR_SIZE = 8;
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
 
-    private Register r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11, r12, sp, lr, pc;
+    private Register r0;
+    private Register r1;
+    private Register r2;
+    private Register r3;
+    private Register r4;
+    private Register r5;
+    private Register r6;
+    private Register r7;
+    private Register r8;
+    private Register r9;
+    private Register r10;
+    private Register r11;
+    private Register r12;
+    private Register sp;
+    private Register lr;
+    private Register pc;
 
     public CodeGenerator() {
+        initialiseRegisters();
+        initialiseFreeRegisters();
+    }
+
+    private void initialiseRegisters() {
         r0 = new Register(R0);
         r1 = new Register(R1);
         r2 = new Register(R2);
@@ -61,6 +83,18 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         sp = new Register(SP);
         lr = new Register(LR);
         pc = new Register(PC);
+    }
+
+    private void initialiseFreeRegisters() {
+        freeRegisters.push(r12);
+        freeRegisters.push(r11);
+        freeRegisters.push(r10);
+        freeRegisters.push(r9);
+        freeRegisters.push(r8);
+        freeRegisters.push(r7);
+        freeRegisters.push(r6);
+        freeRegisters.push(r5);
+        freeRegisters.push(r4);
     }
 
     //-------------------------UTILITY FUNCTIONS-----------------------------//
@@ -123,14 +157,36 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         }
     }
 
-
     private void storeResult(int offset, SingleDataTransferType storeType) {
+        Register dst = freeRegisters.peek();
         if (offset == 0) {
-            instrs.add(new SingleDataTransferInstruction<>(storeType, r4, sp));
+            instrs.add(new SingleDataTransferInstruction<>(storeType, dst, sp));
         } else {
-            instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
+            instrs.add(new SingleDataTransferInstruction<>(storeType, dst,
                     new ShiftRegister(SP, offset, null)));
         }
+    }
+
+    private int getExprSize(Type type) {
+        if (type.equalsType(INT)) {
+            return INT_SIZE;
+        }
+        if (type.equalsType(BOOL)) {
+            return BOOL_SIZE;
+        }
+        if (type.equalsType(CHAR)) {
+            return CHAR_SIZE;
+        }
+        if (type.equalsType(STRING)) {
+            return STRING_SIZE;
+        }
+        if (type instanceof ArrayType) {
+            return ARRAY_SIZE;
+        }
+        if (type instanceof PairType) {
+            return PAIR_SIZE;
+        }
+        return 0;
     }
 
     //------------------------------VISIT METHODS----------------------------//
@@ -224,24 +280,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     public Type visitVarInit(@NotNull VarInitContext ctx) {
         Type lhs = visitType(ctx.type());
 
-        if (lhs.equalsType(INT)) {
-            stackPos += INT_SIZE;
-        }
-        if (lhs.equalsType(BOOL)) {
-            stackPos += BOOL_SIZE;
-        }
-        if (lhs.equalsType(CHAR)) {
-            stackPos += CHAR_SIZE;
-        }
-        if (lhs.equalsType(STRING)) {
-            stackPos += STRING_SIZE;
-        }
-        if (lhs instanceof ArrayType) {
-            stackPos += ARRAY_SIZE;
-        }
-        if (lhs instanceof PairType) {
-            stackPos += PAIR_SIZE;
-        }
+        int size = getExprSize(lhs);
+        stackPos += size;
 
         visitAssignRhs(ctx.assignRhs());
 
@@ -293,8 +333,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         Type type = visitAssignLhs(ctx.assignLhs());
 
         Label readLabel = new Label("p_read_" + type);
-        instrs.add(new DataProcessingInstruction<>(ADD, r4, sp, currVarPos));
-        instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+        Register expr = freeRegisters.peek();
+        instrs.add(new DataProcessingInstruction<>(ADD, expr, sp, currVarPos));
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, expr));
         instrs.add(new BranchInstruction(BL, readLabel));
 
         // Add the format specifier to data
@@ -321,14 +362,14 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitReturnStat(@NotNull ReturnStatContext ctx) {
         visitExpr(ctx.expr());
-        instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, freeRegisters.peek()));
         return null;
     }
 
     @Override
     public Type visitExitStat(@NotNull ExitStatContext ctx) {
         visitExpr(ctx.expr());
-        instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, freeRegisters.peek()));
         instrs.add(new BranchInstruction(BL, new Label("exit")));
         return null;
     }
@@ -368,7 +409,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         Type type = visitExpr(ctx);
         Label printLabel = getPrintLabel(type);
 
-        instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, freeRegisters.peek()));
 
         if (type.equalsType(CHAR)) {
             instrs.add(new BranchInstruction(BL, new Label("putchar")));
@@ -437,7 +478,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         Label elseLabel = getNonFunctionLabel();
         Label fiLabel = getNonFunctionLabel();
         visitExpr(ctx.expr());
-        instrs.add(new DataProcessingInstruction<>(CMP, r4, 0));
+        instrs.add(new DataProcessingInstruction<>(CMP, freeRegisters.peek(), 0));
         instrs.add(new BranchInstruction(BEQ, elseLabel));
         visit(ctx.stat(0));
         instrs.add(new BranchInstruction(B, fiLabel));
@@ -456,7 +497,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         visit(ctx.stat());
         instrs.add(exitLabel);
         visitExpr(ctx.expr());
-        instrs.add(new DataProcessingInstruction<>(CMP, r4, 1));
+        instrs.add(new DataProcessingInstruction<>(CMP, freeRegisters.peek(), 1));
         instrs.add(new BranchInstruction(BEQ, loopLabel));
         return null;
     }
@@ -505,7 +546,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     public Type visitNewPair(@NotNull NewPairContext ctx) {
         instrs.add(new SingleDataTransferInstruction<>(LDR, r0, NEWPAIR_SIZE));
         instrs.add(new BranchInstruction(BL, new Label("malloc")));
-        instrs.add(new DataProcessingInstruction<>(MOV, r5, r0));
+        Register pair = freeRegisters.pop();
+        instrs.add(new DataProcessingInstruction<>(MOV, pair, r0));
+        Register var = freeRegisters.peek();
 
         Type type1 = visitExpr(ctx.expr(0));
         int size1 = INT_SIZE;
@@ -520,8 +563,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             storeType1 = STRB;
         }
 
-        instrs.add(new SingleDataTransferInstruction<>(storeType1, r4, r0));
-        instrs.add(new SingleDataTransferInstruction<>(STR, r0, r5));
+        instrs.add(new SingleDataTransferInstruction<>(storeType1, var, r0));
+        instrs.add(new SingleDataTransferInstruction<>(STR, r0, pair));
 
 
         Type type2 = visitExpr(ctx.expr(0));
@@ -537,8 +580,11 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             storeType2 = STRB;
         }
 
-        instrs.add(new SingleDataTransferInstruction<>(storeType2, r4, r0));
-        instrs.add(new SingleDataTransferInstruction<>(STR, r0, new ShiftRegister(R5, 4, null)));
+        instrs.add(new SingleDataTransferInstruction<>(storeType2, var, r0));
+        instrs.add(new SingleDataTransferInstruction<>(STR, r0,
+                new ShiftRegister(pair.getType(), 4, null)));
+
+        freeRegisters.push(pair);
 
         return null;
     }
@@ -551,7 +597,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         }
         instrs.add(new BranchInstruction(BL, new Label(funName, null, true)));
         instrs.add(new DataProcessingInstruction<>(ADD, sp, sp, funcSize));
-        instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
+        instrs.add(new DataProcessingInstruction<>(MOV, freeRegisters.peek(), r0));
         funcSize = 0;
         return null;
     }
@@ -569,7 +615,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                 size = BOOL_SIZE;
             }
             funcSize += size;
-            instrs.add(new SingleDataTransferInstruction<>(storeType, r4,
+            instrs.add(new SingleDataTransferInstruction<>(storeType, freeRegisters.peek(),
                     new ShiftRegister(SP, -size, '!')));
         }
         return null;
@@ -649,13 +695,14 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         ExprContext arg = e.expr(0);
 
         visitExpr(arg);
+        Register var = freeRegisters.peek();
 
         switch (ctx.getText()) {
             case "!":
-                instrs.add(new DataProcessingInstruction<>(EOR, r4, r4, 1));
+                instrs.add(new DataProcessingInstruction<>(EOR, var, var, 1));
                 return BOOL;
             case "-":
-                instrs.add(new DataProcessingInstruction<>(RSBS, r4, r4, 0));
+                instrs.add(new DataProcessingInstruction<>(RSBS, var, var, 0));
                 return INT;
             case "len":
                 break;
@@ -673,18 +720,21 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         ExprContext arg1 = e.expr(0);
         ExprContext arg2 = e.expr(1);
 
-        visitExpr(arg2);
-        instrs.add(new DataProcessingInstruction<>(MOV, r5, r4));
         visitExpr(arg1);
+        Register var1 = freeRegisters.pop();
+        visitExpr(arg2);
+        Register var2 = freeRegisters.peek();
 
         switch (ctx.getText()) {
             case "||":
-                instrs.add(new DataProcessingInstruction<>(ORR, r4, r4, r5));
+                instrs.add(new DataProcessingInstruction<>(ORR, var1, var1, var2));
                 break;
             case "&&":
-                instrs.add(new DataProcessingInstruction<>(AND, r4, r4, r5));
+                instrs.add(new DataProcessingInstruction<>(AND, var1, var1, var2));
                 break;
         }
+
+        freeRegisters.push(var1);
 
         return BOOL;
     }
@@ -695,66 +745,70 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         ExprContext arg1 = e.expr(0);
         ExprContext arg2 = e.expr(1);
 
-        visitExpr(arg2);
-        instrs.add(new DataProcessingInstruction<>(MOV, r5, r4));
         visitExpr(arg1);
+        Register var1 = freeRegisters.pop();
+        visitExpr(arg2);
+        Register var2 = freeRegisters.peek();
 
         switch (ctx.getText()) {
             case "*":
-                instrs.add(new MultiplyInstruction(SMULL, r4, r5, r4, r5));
-                instrs.add(new DataProcessingInstruction<>(CMP, r5, r4, new ShiftInstruction(ASR, 31)));
+                instrs.add(new MultiplyInstruction(SMULL, var1, var2, var1, var2));
+                instrs.add(new DataProcessingInstruction<>(CMP, var2, var1, new ShiftInstruction(ASR, 31)));
                 return INT;
             case "/":
-                instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
+                instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
+                instrs.add(new DataProcessingInstruction<>(MOV, r1, var2));
                 instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
-                instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
-                instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                instrs.add(new DataProcessingInstruction<>(MOV, var1, r0));
+                instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
                 return INT;
             case "%":
-                instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
-                instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
+                instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
+                instrs.add(new DataProcessingInstruction<>(MOV, r1, var2));
                 instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
-                instrs.add(new DataProcessingInstruction<>(MOV, r4, r1));
-                instrs.add(new DataProcessingInstruction<>(MOV, r0, r4));
+                instrs.add(new DataProcessingInstruction<>(MOV, var1, r1));
+                instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
                 return INT;
             case "+":
-                instrs.add(new DataProcessingInstruction<>(ADDS, r4, r4, r5));
+                instrs.add(new DataProcessingInstruction<>(ADDS, var1, var1, var2));
                 return INT;
             case "-":
-                instrs.add(new DataProcessingInstruction<>(SUBS, r4, r4, r5));
+                instrs.add(new DataProcessingInstruction<>(SUBS, var1, var1, var2));
                 return INT;
             case ">":
-                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                instrs.add(new DataProcessingInstruction<>(MOVGT, r4, 1));
-                instrs.add(new DataProcessingInstruction<>(MOVLE, r4, 0));
+                instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
+                instrs.add(new DataProcessingInstruction<>(MOVGT, var1, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVLE, var1, 0));
                 return BOOL;
             case ">=":
-                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                instrs.add(new DataProcessingInstruction<>(MOVGE, r4, 1));
-                instrs.add(new DataProcessingInstruction<>(MOVLT, r4, 0));
+                instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
+                instrs.add(new DataProcessingInstruction<>(MOVGE, var1, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVLT, var1, 0));
                 return BOOL;
             case "<":
-                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                instrs.add(new DataProcessingInstruction<>(MOVLT, r4, 1));
-                instrs.add(new DataProcessingInstruction<>(MOVGE, r4, 0));
+                instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
+                instrs.add(new DataProcessingInstruction<>(MOVLT, var1, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVGE, var1, 0));
                 return BOOL;
             case "<=":
-                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                instrs.add(new DataProcessingInstruction<>(MOVLE, r4, 1));
-                instrs.add(new DataProcessingInstruction<>(MOVGT, r4, 0));
+                instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
+                instrs.add(new DataProcessingInstruction<>(MOVLE, var1, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVGT, var1, 0));
                 return BOOL;
             case "==":
-                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                instrs.add(new DataProcessingInstruction<>(MOVEQ, r4, 1));
-                instrs.add(new DataProcessingInstruction<>(MOVNE, r4, 0));
+                instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
+                instrs.add(new DataProcessingInstruction<>(MOVEQ, var1, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVNE, var1, 0));
                 return BOOL;
             case "!=":
-                instrs.add(new DataProcessingInstruction<>(CMP, r4, r5));
-                instrs.add(new DataProcessingInstruction<>(MOVNE, r4, 1));
-                instrs.add(new DataProcessingInstruction<>(MOVEQ, r4, 0));
+                instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
+                instrs.add(new DataProcessingInstruction<>(MOVNE, var1, 1));
+                instrs.add(new DataProcessingInstruction<>(MOVEQ, var1, 0));
                 return BOOL;
         }
+
+        freeRegisters.push(var1);
+
         return null;
     }
 
@@ -766,20 +820,19 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
             loadRegType = LDRSB;
         }
-        instrs.add(new SingleDataTransferInstruction<>(loadRegType, r4,
-                new ShiftRegister(SP, currVarPos, null)));
+        instrs.add(new SingleDataTransferInstruction<>(loadRegType,
+                freeRegisters.peek(), new ShiftRegister(SP, currVarPos, null)));
         return type;
     }
 
     @Override
     public Type visitArrayElem(@NotNull ArrayElemContext ctx) {
-        instrs.add(new DataProcessingInstruction<>(ADD, r5, sp, 0));
-        visitExpr(ctx.expr(0));
-        instrs.add(new SingleDataTransferInstruction<>(LDR, r6, r4));
-        instrs.add(new SingleDataTransferInstruction<>(LDR, r5, r5));
-        instrs.add(new DataProcessingInstruction<>(MOV,r0,r6));
-        instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
-    
+//        instrs.add(new DataProcessingInstruction<>(ADD, r5, sp, 0));
+//        visitExpr(ctx.expr(0));
+//        instrs.add(new SingleDataTransferInstruction<>(LDR, r6, r4));
+//        instrs.add(new SingleDataTransferInstruction<>(LDR, r5, r5));
+//        instrs.add(new DataProcessingInstruction<>(MOV,r0,r6));
+//        instrs.add(new DataProcessingInstruction<>(MOV, r1, r5));
         return null;
     }
 
@@ -787,7 +840,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     public Type visitIntLiter(@NotNull IntLiterContext ctx) {
         data.getMessageLocation(new Identifier(INT, ctx.getText()));
         int intLiter = Integer.parseInt(ctx.getText());
-        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, intLiter));
+        instrs.add(new SingleDataTransferInstruction<>(LDR, freeRegisters.peek(), intLiter));
         return INT;
     }
 
@@ -795,7 +848,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     public Type visitBoolLiter(@NotNull BoolLiterContext ctx) {
         String text = ctx.getText();
         int boolLiter = text.equals("true") ? 1 : 0;
-        instrs.add(new DataProcessingInstruction<>(MOV, r4, boolLiter));
+        instrs.add(new DataProcessingInstruction<>(MOV, freeRegisters.peek(), boolLiter));
         return BOOL;
     }
 
@@ -806,7 +859,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         if (charLiter == '\\') {
             charLiter = text.charAt(2);
         }
-        instrs.add(new DataProcessingInstruction<>(MOV, r4, charLiter));
+        instrs.add(new DataProcessingInstruction<>(MOV, freeRegisters.peek(), charLiter));
         return CHAR;
     }
 
@@ -815,43 +868,25 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         String value = ctx.getText().substring(1, ctx.getText().length() - 1);
         Identifier ident = new Identifier(STRING, value);
         Label msg = data.getMessageLocation(ident);
-        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, msg));
+        instrs.add(new SingleDataTransferInstruction<>(LDR, freeRegisters.peek(), msg));
         return STRING;
     }
 
+
+
     @Override
     public Type visitArrayLiter(@NotNull ArrayLiterContext ctx) {
-        int length = 0;
-        for (ExprContext e : ctx.expr()) {
-            length++;
-        }
-
+        int length = ctx.expr().size();
         Type type = visitExpr(ctx.expr(0));
-        int size = 0;
+        int size = getExprSize(type);
 
-        if (type.equalsType(INT)) {
-            size = INT_SIZE;
-        }
-        if (type.equalsType(BOOL)) {
-            size = BOOL_SIZE;
-        }
-        if (type.equalsType(CHAR)) {
-            size = CHAR_SIZE;
-        }
-        if (type.equalsType(STRING)) {
-            size = STRING_SIZE;
-        }
-        if (type instanceof ArrayType) {
-            size = ARRAY_SIZE;
-        }
-        if (type instanceof PairType) {
-            size = PAIR_SIZE;
-        }
-
-        int reserve = 4 + length * size;
+        int reserve = INT_SIZE + length * size;
         instrs.add(new SingleDataTransferInstruction<>(LDR, r0, reserve));
         instrs.add(new BranchInstruction(BL, new Label("malloc")));
-        instrs.add(new DataProcessingInstruction<>(MOV, r4, r0));
+        Register array = freeRegisters.pop();
+        instrs.add(new DataProcessingInstruction<>(MOV, array, r0));
+        Register expr = freeRegisters.peek();
+
         int offset = 4;
         SingleDataTransferType storeDataTransferType = STR;
         if (type == CHAR || type == BOOL) {
@@ -860,23 +895,25 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         for (int count = 0; count < length; count++) {
             ExprContext e = ctx.expr(count);
-            if (type == CHAR) {
-                instrs.add(new DataProcessingInstruction<>(MOV, r5, e.getText()));
+            if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
+                instrs.add(new DataProcessingInstruction<>(MOV, expr, e.getText()));
             } else {
-                instrs.add(new SingleDataTransferInstruction<>(LDR, r5, Integer.valueOf(e.getText())));
+                instrs.add(new SingleDataTransferInstruction<>(LDR, expr, Integer.valueOf(e.getText())));
             }
-            instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, r5,
-                    new ShiftRegister(r4.getType(), offset + count * size, null)));
+            instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, expr,
+                    new ShiftRegister(array.getType(), offset + count * size, null)));
         }
-        instrs.add(new SingleDataTransferInstruction<>(LDR, r5, length));
-        instrs.add(new SingleDataTransferInstruction<>(STR, r5, r4));
+        instrs.add(new SingleDataTransferInstruction<>(LDR, expr, length));
+        instrs.add(new SingleDataTransferInstruction<>(STR, expr, array));
+
+        freeRegisters.push(array);
 
         return null;
     }
 
     @Override
     public Type visitPairLiter(@NotNull PairLiterContext ctx) {
-        instrs.add(new SingleDataTransferInstruction<>(LDR, r4, 0));
+        instrs.add(new SingleDataTransferInstruction<>(LDR, freeRegisters.peek(), 0));
         return NULL;
     }
 
