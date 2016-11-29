@@ -4,17 +4,15 @@ import java.util.*;
 
 public class SymbolTable<T> {
 
-    public SymbolTable<T> encSymbolTable;
-    Dictionary<String, T> dictionary;
-    Dictionary<String, T[]> funcParams;
-    Map<String, SymbolTable<T>> funcTables;
-    List<SymbolTable<T>> functions;
+    private SymbolTable<T> encSymbolTable;
+    private Map<String, T> dictionary;
+    private Map<String, T[]> funcParams;
+    private Map<String, SymbolTable<T>> funcTables;
 
     private void initialiseCollections() {
-        dictionary = new Hashtable<>();
+        dictionary = new HashMap<>();
         funcTables = new HashMap<>();
-        funcParams = new Hashtable<>();
-        functions = new ArrayList<>();
+        funcParams = new HashMap<>();
     }
 
     public SymbolTable() {
@@ -34,6 +32,14 @@ public class SymbolTable<T> {
         for (SymbolTable<T> symb : funcTables.values()) {
             symb.add("func:" + name, retType);
         }
+    }
+
+    public SymbolTable<T> startNewScope() {
+        return new SymbolTable<>(this);
+    }
+
+    public SymbolTable<T> endCurrentScope() {
+        return encSymbolTable;
     }
 
     public void add(String name, T obj) {
@@ -62,10 +68,6 @@ public class SymbolTable<T> {
             s = s.encSymbolTable;
         }
         return null;
-    }
-
-    public Enumeration<T> getValues() {
-        return dictionary.elements();
     }
 
     @Override

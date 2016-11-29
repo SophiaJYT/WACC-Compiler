@@ -460,7 +460,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitBeginEnd(@NotNull BeginEndContext ctx) {
         // Create new scopes for current symbol table and stack space
-        curr = new SymbolTable<>(curr);
+        curr = curr.startNewScope();
         Dictionary<String, Integer> oldStack = stackSpace;
         stackSpace = new Hashtable<>();
         int oldSize = stackSize;
@@ -476,7 +476,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         stackSpace = oldStack;
         stackSize = oldSize;
-        curr = curr.encSymbolTable;
+        curr = curr.endCurrentScope();
 
         return null;
     }

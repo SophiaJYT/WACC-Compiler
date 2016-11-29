@@ -297,13 +297,13 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             return null;
         }
 
-        curr = new SymbolTable<>(curr);
+        curr = curr.startNewScope();
         Type thenStat = visit(ctx.stat(0));
-        curr = curr.encSymbolTable;
+        curr = curr.endCurrentScope();
 
-        curr = new SymbolTable<>(curr);
+        curr = curr.startNewScope();
         Type elseStat = visit(ctx.stat(1));
-        curr = curr.encSymbolTable;
+        curr = curr.endCurrentScope();
 
         if (thenStat != null && elseStat != null) {
             if (thenStat.equalsType(elseStat)) {
@@ -324,22 +324,22 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         if (!expected.equalsType(AllTypes.BOOL)) {
             addSemanticError(ctx, "While condition must evaluate to a 'bool' value");
         }
-        curr = new SymbolTable<>(curr);
+        curr = curr.startNewScope();
         StatContext stat = ctx.stat();
         if (stat == null) {
             return null;
         }
         visitChildren(stat);
-        curr = curr.encSymbolTable;
+        curr = curr.endCurrentScope();
         return null;
     }
 
     @Override
     public Type visitBeginEnd(@NotNull BeginEndContext ctx) {
         // Initialise a new symbol table, with access to previous symbol table contents
-        curr = new SymbolTable<>(curr);
+        curr = curr.startNewScope();
         visitChildren(ctx);
-        curr = curr.encSymbolTable;
+        curr = curr.endCurrentScope();
         return null;
     }
 
