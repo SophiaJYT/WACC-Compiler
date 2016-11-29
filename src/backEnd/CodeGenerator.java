@@ -425,6 +425,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         printInstrs.add(new BranchInstruction(BL, new Label("fflush")));
         printInstrs.add(new StackInstruction(POP, pc));
 
+        if (isPrintLn) {
+            visitPrintLn();
+        }
+
         return null;
     }
 
