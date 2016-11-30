@@ -87,7 +87,7 @@ public class DataProcessingInstruction <T> implements Instruction {
         }
 
         return type + " " + destination + strForOperand1 + ", " + strForOperand2
-                + (shiftInstruction != null ? shiftInstruction.toString() :  "");
+                + (shiftInstruction != null ? ", " + shiftInstruction.toString() :  "");
     }
 
     //makes sure the list is initialized only once

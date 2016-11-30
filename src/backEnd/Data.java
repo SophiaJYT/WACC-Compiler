@@ -123,7 +123,7 @@ public class Data {
         if (type instanceof PairType || type instanceof ArrayType) {
             String refFormat = "%p\\0";
             messages.add(new Directive("word " + (refFormat.length() - 1)));
-            messages.add(new Directive("ascii\"" + refFormat + "\""));
+            messages.add(new Directive("ascii \"" + refFormat + "\""));
             formatSpecifiers.put(NULL, msg);
         }
 
