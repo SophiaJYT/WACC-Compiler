@@ -27,6 +27,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     private Dictionary<String, Integer> stackSpace = new Hashtable<>();
     private SymbolTable<Dictionary<String, Integer>> heapSpace = new SymbolTable<>();
 
+    private Register heapPtr = null;
+
     private int arrayLength = 0, heapPos = 0;
 
     private int stackSize = 0, stackPos = 0, currVarPos = 0;
@@ -287,6 +289,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         stackPos += size;
 
         visitAssignRhs(ctx.assignRhs());
+        Register result = freeRegisters.pop();
 
         int offset = stackSize - stackPos;
         String varName = ctx.ident().getText();
@@ -298,10 +301,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             heapPos = PAIR_SIZE;
             String fst = varName + ".fst";
             curr.add(fst, ((PairType) lhs).getLeft());
-            pairElems.put(fst, heapPos);
+            pairElems.put(fst, heapPos - PAIR_SIZE);
             String snd = varName + ".snd";
             curr.add(snd, ((PairType) lhs).getRight());
-            pairElems.put(snd, heapPos - PAIR_SIZE);
+            pairElems.put(snd, heapPos);
             heapSpace.add(varName, pairElems);
         }
 
@@ -320,14 +323,18 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         }
 
         SingleDataTransferType storeType = STR;
-//        SingleDataTransferType loadType = LDR;
 
         if (lhs.equalsType(BOOL) || lhs.equalsType(CHAR)) {
             storeType = STRB;
-//            loadType = LDRSB;
         }
 
-        storeResult(offset, storeType, sp, freeRegisters.peek());
+        storeResult(offset, storeType, result, sp);
+
+        freeRegisters.push(result);
+
+        if (ctx.assignRhs().pairElem() != null) {
+            resetHeapPointer();
+        }
 
         return null;
     }
@@ -335,29 +342,34 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitVarAssign(@NotNull VarAssignContext ctx) {
 
-        Type lhs = visitAssignLhs(ctx.assignLhs());
         visitAssignRhs(ctx.assignRhs());
+        Register result = freeRegisters.pop();
 
+        Type lhs;
         int offset;
-        Register src;
         Register dst;
         PairElemContext pairElemLhs = ctx.assignLhs().pairElem();
+        ArrayElemContext arrayElemLhs = ctx.assignLhs().arrayElem();
         if (pairElemLhs != null) {
-            String id = pairElemLhs.expr().getText();
+            String pairName = pairElemLhs.expr().getText();
             String elem = (pairElemLhs.FIRST() != null) ? "fst" : "snd";
-            String pairElem = id + "." + elem;
-            offset = heapSpace.lookUp(id).get(pairElem);
-            src = freeRegisters.peek();
-        } else if (ctx.assignLhs().arrayElem() != null) {
-            String id;
-            offset = 0;
+            String pairElem = pairName + "." + elem;
+            lhs = curr.lookUp(pairElem);
+            offset = heapSpace.lookUp(pairName).get(pairElem);
+            visitPairElem(pairElemLhs);
+            dst = freeRegisters.peek();
+            instrs.removeLast();
+        } else if (arrayElemLhs != null) {
+            String arrayElem = arrayElemLhs.getText();
+            lhs = curr.lookUp(arrayElem);
+            offset = heapSpace.lookUp(arrayElem).get(arrayElemLhs.getText());
+            dst = sp;
         } else {
-            String id = ctx.assignLhs().getText();
-            offset = stackSpace.get(id);
-            src = freeRegisters.peek();
+            String ident = ctx.assignLhs().getText();
+            lhs = curr.lookUp(ident);
+            offset = stackSpace.get(ident);
             dst = sp;
         }
-
 
         SingleDataTransferType storeType = STR;
 
@@ -365,16 +377,21 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             storeType = STRB;
         }
 
-//        if (ctx.assignLhs().pairElem() != null) {
-//            storeResult(offset, storeType, freeRegisters.peek(), sp);
-//        } else if (ctx.assignLhs().arrayElem() != null) {
-//            storeResult(offset, storeType, );
-//        }
+        storeResult(offset, storeType, result, dst);
 
-        storeResult(offset, storeType, sp, freeRegisters.peek());
+        if (heapPtr != null) {
+            resetHeapPointer();
+        }
+
+        freeRegisters.push(result);
 
         return null;
 
+    }
+
+    private void resetHeapPointer() {
+        freeRegisters.push(heapPtr);
+        heapPtr = null;
     }
 
     @Override
@@ -678,6 +695,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         int elemOffset = heapSpace.lookUp(pairName).get(pairElem);
         Register pair = freeRegisters.pop();
         Register dst = freeRegisters.peek();
+        Type type = curr.lookUpAll(pairElem);
+
+
         instrs.add(new SingleDataTransferInstruction<>(LDR, pair,
                 pairOffset == 0 ? sp : new ShiftRegister(SP, pairOffset, null)));
 
@@ -685,8 +705,17 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         instrs.add(new SingleDataTransferInstruction<>(LDR, dst,
                 elemOffset == 0 ? pair : new ShiftRegister(pair.getType(), elemOffset, null)));
-        freeRegisters.push(pair);
-        return curr.lookUpAll(pairElem);
+
+        SingleDataTransferType loadType = LDR;
+
+        if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
+            loadType = LDRSB;
+        }
+        instrs.add(new SingleDataTransferInstruction<>(loadType, dst,
+                elemOffset == 0 ? dst : new ShiftRegister(dst.getType(), elemOffset, null)));
+
+        heapPtr = pair;
+        return type;
     }
 
     @Override
