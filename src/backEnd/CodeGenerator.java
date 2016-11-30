@@ -840,67 +840,79 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         Register var1 = freeRegisters.pop();
         visitExpr(arg2);
         Register var2 = freeRegisters.peek();
+        Type retType = null;
 
         switch (ctx.getText()) {
             case "*":
                 instrs.add(new MultiplyInstruction(SMULL, var1, var2, var1, var2));
                 instrs.add(new DataProcessingInstruction<>(CMP, var2, var1, new ShiftInstruction(ASR, 31)));
-                return INT;
+                retType = INT;
+                break;
             case "/":
                 instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
                 instrs.add(new DataProcessingInstruction<>(MOV, r1, var2));
                 instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
                 instrs.add(new DataProcessingInstruction<>(MOV, var1, r0));
                 instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
-                return INT;
+                retType = INT;
+                break;
             case "%":
                 instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
                 instrs.add(new DataProcessingInstruction<>(MOV, r1, var2));
                 instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
                 instrs.add(new DataProcessingInstruction<>(MOV, var1, r1));
                 instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
-                return INT;
+                retType = INT;
+                break;
             case "+":
                 instrs.add(new DataProcessingInstruction<>(ADDS, var1, var1, var2));
-                return INT;
+                retType = INT;
+                break;
             case "-":
                 instrs.add(new DataProcessingInstruction<>(SUBS, var1, var1, var2));
-                return INT;
+                retType = INT;
+                break;
             case ">":
                 instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
                 instrs.add(new DataProcessingInstruction<>(MOVGT, var1, 1));
                 instrs.add(new DataProcessingInstruction<>(MOVLE, var1, 0));
-                return BOOL;
+                retType = BOOL;
+                break;
             case ">=":
                 instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
                 instrs.add(new DataProcessingInstruction<>(MOVGE, var1, 1));
                 instrs.add(new DataProcessingInstruction<>(MOVLT, var1, 0));
-                return BOOL;
+                retType = BOOL;
+                break;
             case "<":
                 instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
                 instrs.add(new DataProcessingInstruction<>(MOVLT, var1, 1));
                 instrs.add(new DataProcessingInstruction<>(MOVGE, var1, 0));
-                return BOOL;
+                retType = BOOL;
+                break;
             case "<=":
                 instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
                 instrs.add(new DataProcessingInstruction<>(MOVLE, var1, 1));
                 instrs.add(new DataProcessingInstruction<>(MOVGT, var1, 0));
-                return BOOL;
+                retType = BOOL;
+                break;
             case "==":
                 instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
                 instrs.add(new DataProcessingInstruction<>(MOVEQ, var1, 1));
                 instrs.add(new DataProcessingInstruction<>(MOVNE, var1, 0));
-                return BOOL;
+                retType = BOOL;
+                break;
             case "!=":
                 instrs.add(new DataProcessingInstruction<>(CMP, var1, var2));
                 instrs.add(new DataProcessingInstruction<>(MOVNE, var1, 1));
                 instrs.add(new DataProcessingInstruction<>(MOVEQ, var1, 0));
-                return BOOL;
+                retType = BOOL;
+                break;
         }
 
         freeRegisters.push(var1);
 
-        return null;
+        return retType;
     }
 
     @Override
