@@ -355,7 +355,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             String elem = (pairElemLhs.FIRST() != null) ? "fst" : "snd";
             String pairElem = pairName + "." + elem;
             lhs = curr.lookUp(pairElem);
-            offset = heapSpace.lookUp(pairName).get(pairElem);
+            offset = 0;
             visitPairElem(pairElemLhs);
             dst = freeRegisters.peek();
             instrs.removeLast();
@@ -711,8 +711,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
             loadType = LDRSB;
         }
-        instrs.add(new SingleDataTransferInstruction<>(loadType, dst,
-                elemOffset == 0 ? dst : new ShiftRegister(dst.getType(), elemOffset, null)));
+        instrs.add(new SingleDataTransferInstruction<>(loadType, dst, dst));
 
         heapPtr = pair;
         return type;
