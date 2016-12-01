@@ -112,7 +112,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     private Label getPrintLabel(Type type) {
         String label = "" + type;
-        if (type instanceof ArrayType || type instanceof PairType) {
+        if (type.equalsType(NULL)) {
             label = "reference";
         }
         return new Label("p_print_" + label);
@@ -476,6 +476,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     private Type visitPrint(@NotNull ExprContext ctx, boolean isPrintLn) {
         Type type = visitExpr(ctx);
+        if (type instanceof ArrayType || type instanceof PairType) {
+            type = NULL;
+        }
         Label printLabel = getPrintLabel(type);
 
         instrs.add(new DataProcessingInstruction<>(MOV, r0, freeRegisters.peek()));
@@ -523,7 +526,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             printInstrs.add(new SingleDataTransferInstruction<>(LDREQ, r0, falseLabel));
         }
 
-        if (type instanceof ArrayType || type instanceof PairType) {
+        if (type.equalsType(NULL)) {
             printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
             Label refLabel = data.getFormatSpecifier(type);
             printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, refLabel));
