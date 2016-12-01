@@ -308,20 +308,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             heapSpace.add(varName, pairElems);
         }
 
-        if (lhs instanceof ArrayType || lhs.equalsType(STRING)) {
-            Dictionary<String, Integer> arrayElems = new Hashtable<>();
-            Type exprType = lhs instanceof ArrayType ? ((ArrayType) lhs).getElement() : CHAR;
-            int exprSize = getExprSize(exprType);
-            int arraySize = arrayLength * exprSize;
-            heapPos = arrayLength * exprSize - INT_SIZE;
-            for (int i = 0; i < arrayLength; i++) {
-                String arrayElem = varName + "[" + i + "]";
-                arrayElems.put(arrayElem, arraySize - heapPos);
-                curr.add(arrayElem, exprType);
-                heapPos -= exprSize;
-            }
-            heapSpace.add(varName, arrayElems);
-        }
+        addArrayElements(lhs, varName);
 
         SingleDataTransferType storeType = STR;
 
@@ -338,6 +325,24 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         }
 
         return null;
+    }
+
+    private void addArrayElements(Type lhs, String varName) {
+        if (lhs instanceof ArrayType || lhs.equalsType(STRING)) {
+            Dictionary<String, Integer> arrayElems = new Hashtable<>();
+            Type exprType = lhs instanceof ArrayType ? ((ArrayType) lhs).getElement() : CHAR;
+            int exprSize = getExprSize(exprType);
+            int arraySize = arrayLength * exprSize;
+            heapPos = arrayLength * exprSize - INT_SIZE;
+            for (int i = 0; i < arrayLength; i++) {
+                String arrayElem = varName + "[" + i + "]";
+                arrayElems.put(arrayElem, arraySize - heapPos);
+                curr.add(arrayElem, exprType);
+                addArrayElements(exprType, arrayElem);
+                heapPos -= exprSize;
+            }
+            heapSpace.add(varName, arrayElems);
+        }
     }
 
     @Override
@@ -939,14 +944,18 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     public Type visitArrayElem(@NotNull ArrayElemContext ctx) {
         Register array = freeRegisters.pop();
         instrs.add(new DataProcessingInstruction<>(ADD, array, sp, stackPos - ARRAY_SIZE - arrayPos));
-        visitExpr(ctx.expr(0));
-        instrs.add(new SingleDataTransferInstruction<>(LDR, array, array));
-        instrs.add(new DataProcessingInstruction<>(ADD, array, array, 4));
-        instrs.add(new DataProcessingInstruction<>(ADD, array, array, freeRegisters.peek(),
-                new ShiftInstruction(LSL, 2)));
+        String arrayElem = ctx.ident().getText();
+        for (ExprContext index : ctx.expr()) {
+            visitExpr(index);
+            instrs.add(new SingleDataTransferInstruction<>(LDR, array, array));
+            instrs.add(new DataProcessingInstruction<>(ADD, array, array, 4));
+            instrs.add(new DataProcessingInstruction<>(ADD, array, array, freeRegisters.peek(),
+                    new ShiftInstruction(LSL, 2)));
+            arrayElem += "[0]";
+        }
         instrs.add(new SingleDataTransferInstruction<>(LDR, array, array));
         freeRegisters.push(array);
-        return curr.lookUp(ctx.ident().getText() + "[0]");
+        return curr.lookUp(arrayElem);
     }
 
     @Override
@@ -1017,11 +1026,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         for (int count = 0; count < arrayLength; count++) {
             ExprContext e = ctx.expr(count);
-            if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
-                instrs.add(new DataProcessingInstruction<>(MOV, expr, e.getText()));
-            } else {
-                instrs.add(new SingleDataTransferInstruction<>(LDR, expr, Integer.valueOf(e.getText())));
-            }
+            visitExpr(e);
             instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, expr,
                     new ShiftRegister(array.getType(), offset + count * exprSize, null)));
         }
