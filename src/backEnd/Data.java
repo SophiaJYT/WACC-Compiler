@@ -44,9 +44,7 @@ public class Data {
     }
 
     private Label addMessage(Identifier ident) {
-        if (isEmpty()) {
-            messages.add(new Directive("data"));
-        }
+        checkDataDirective();
 
         Type exprType = ident.getType();
 
@@ -96,6 +94,8 @@ public class Data {
     }
 
     public Label addFormatSpecifier(Type type) {
+        checkDataDirective();
+
         Label msg = new Label("msg_", messageIndex++, false);
         messages.add(msg);
 
@@ -129,6 +129,12 @@ public class Data {
 
         return msg;
 
+    }
+
+    private void checkDataDirective() {
+        if (isEmpty()) {
+            messages.add(new Directive("data"));
+        }
     }
 
     private void addFormatSpecifiers() {
