@@ -194,6 +194,25 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         return 0;
     }
 
+
+    private void addArrayElements(Type lhs, String varName) {
+        if (lhs instanceof ArrayType || lhs.equalsType(STRING)) {
+            Dictionary<String, Integer> arrayElems = new Hashtable<>();
+            Type exprType = lhs instanceof ArrayType ? ((ArrayType) lhs).getElement() : CHAR;
+            int exprSize = getExprSize(exprType);
+            int arraySize = arrayLength * exprSize;
+            heapPos = arrayLength * exprSize - INT_SIZE;
+            for (int i = 0; i < arrayLength; i++) {
+                String arrayElem = varName + "[" + i + "]";
+                arrayElems.put(arrayElem, arraySize - heapPos);
+                curr.add(arrayElem, exprType);
+                addArrayElements(exprType, arrayElem);
+                heapPos -= exprSize;
+            }
+            heapSpace.add(varName, arrayElems);
+        }
+    }
+
     //------------------------------VISIT METHODS----------------------------//
 
     @Override
@@ -325,24 +344,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         }
 
         return null;
-    }
-
-    private void addArrayElements(Type lhs, String varName) {
-        if (lhs instanceof ArrayType || lhs.equalsType(STRING)) {
-            Dictionary<String, Integer> arrayElems = new Hashtable<>();
-            Type exprType = lhs instanceof ArrayType ? ((ArrayType) lhs).getElement() : CHAR;
-            int exprSize = getExprSize(exprType);
-            int arraySize = arrayLength * exprSize;
-            heapPos = arrayLength * exprSize - INT_SIZE;
-            for (int i = 0; i < arrayLength; i++) {
-                String arrayElem = varName + "[" + i + "]";
-                arrayElems.put(arrayElem, arraySize - heapPos);
-                curr.add(arrayElem, exprType);
-                addArrayElements(exprType, arrayElem);
-                heapPos -= exprSize;
-            }
-            heapSpace.add(varName, arrayElems);
-        }
     }
 
     @Override
