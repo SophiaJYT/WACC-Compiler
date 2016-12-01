@@ -552,7 +552,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     }
 
     @Override
-    public Type visitIfStat(@NotNull IfStatContext ctx) {
+    public Type visitIfElseStat(@NotNull IfStatContext ctx) {
         Label elseLabel = getNonFunctionLabel();
         Label fiLabel = getNonFunctionLabel();
         visitExpr(ctx.expr());

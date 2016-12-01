@@ -287,7 +287,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     }
 
     @Override
-    public Type visitIfStat(@NotNull IfStatContext ctx) {
+    public Type visitIfElseStat(@NotNull IfStatContext ctx) {
         if (visitExpr(ctx.expr()) != AllTypes.BOOL) {
             addSemanticError(ctx, "If condition must evaluate to a bool value");
         }
