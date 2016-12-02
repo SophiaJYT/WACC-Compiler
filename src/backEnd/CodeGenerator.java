@@ -37,15 +37,13 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     private Stack<Register> freeRegisters = new Stack<>();
 
     private Deque<Instruction> instrs = new ArrayDeque<>();
-    private Deque<Instruction> printInstrs = new ArrayDeque<>();
     private int labelIndex = 0;
 
     private SymbolTable<Type> head = new SymbolTable<>();
     private SymbolTable<Type> curr = head;
 
     private Data data = new Data();
-
-    private Dictionary<Type, Label> printLabels = new Hashtable<>();
+    private ExtraMethodGenerator methodGenerator = new ExtraMethodGenerator();
 
     private static int MAX_STACK_OFFSET = 1024, ARRAY_SIZE = 4, PAIR_SIZE = 4, NEWPAIR_SIZE = 8;
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
@@ -248,7 +246,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         instrs = messages;
 
         // Add print labels to end of the program
-        instrs.addAll(printInstrs);
+        Deque<Instruction> extraMethods = methodGenerator.getExtraMethods();
+        instrs.addAll(extraMethods);
 
         // Print instructions to standard output
         for (Instruction instr : instrs) {
@@ -418,13 +417,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         Label formatSpecifier = data.getFormatSpecifier(type);
 
         // Add read label instructions
-        printInstrs.add(readLabel);
-        printInstrs.add(new StackInstruction(PUSH, lr));
-        printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
-        printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
-        printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
-        printInstrs.add(new BranchInstruction(BL, new Label("scanf")));
-        printInstrs.add(new StackInstruction(POP, pc));
+        methodGenerator.generateRead(readLabel, formatSpecifier);
 
         return null;
     }
@@ -451,37 +444,21 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPrintStat(@NotNull PrintStatContext ctx) {
-        return visitPrint(ctx.expr(), false);
+        visitPrint(visitExpr(ctx.expr()));
+        return null;
     }
 
     @Override
     public Type visitPrintlnStat(@NotNull PrintlnStatContext ctx) {
-        return visitPrint(ctx.expr(), true);
-    }
-
-    private void visitPrintLn() {
+        visitPrint(visitExpr(ctx.expr()));
         Label printLn = new Label("p_print_ln");
         instrs.add(new BranchInstruction(BL, printLn));
-
-        // Check if println label exists
-        if (printLabels.get(ANY) != null) {
-            return;
-        }
-
         Label newLineLabel = data.getMessageLocation(new Identifier(STRING, "\\0"));
-        printInstrs.add(printLn);
-        printInstrs.add(new StackInstruction(PUSH, lr));
-        printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, newLineLabel));
-        printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
-        printInstrs.add(new BranchInstruction(BL, new Label("puts")));
-        printInstrs.add(new DataProcessingInstruction<>(MOV, r0, 0));
-        printInstrs.add(new BranchInstruction(BL, new Label("fflush")));
-        printInstrs.add(new StackInstruction(POP, pc));
-        printLabels.put(ANY, printLn);
+        methodGenerator.generatePrintLn(printLn, newLineLabel);
+        return null;
     }
 
-    private Type visitPrint(@NotNull ExprContext ctx, boolean isPrintLn) {
-        Type type = visitExpr(ctx);
+    private void visitPrint(Type type) {
         if (type instanceof ArrayType || type instanceof PairType) {
             type = NULL;
         }
@@ -491,64 +468,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         if (type.equalsType(CHAR)) {
             instrs.add(new BranchInstruction(BL, new Label("putchar")));
-            if (isPrintLn) {
-                visitPrintLn();
-            }
-            return null;
+        } else {
+            instrs.add(new BranchInstruction(BL, printLabel));
+            data = methodGenerator.generatePrint(type, printLabel, data);
         }
-
-        instrs.add(new BranchInstruction(BL, printLabel));
-
-        // Check if the print label already exists
-        if (printLabels.get(type) != null) {
-            if (isPrintLn) {
-                visitPrintLn();
-            }
-            return null;
-        }
-
-        printLabels.put(type, printLabel);
-        printInstrs.add(printLabel);
-        printInstrs.add(new StackInstruction(PUSH, lr));
-
-        if (type.equalsType(INT)) {
-            Label formatSpecifier = data.getFormatSpecifier(INT);
-            printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
-            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
-        }
-
-        if (type.equalsType(STRING)) {
-            Label formatSpecifier = data.getFormatSpecifier(STRING);
-            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r1, r0));
-            printInstrs.add(new DataProcessingInstruction<>(ADD, r2, r0, 4));
-            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, formatSpecifier));
-        }
-
-        if (type.equalsType(BOOL)) {
-            printInstrs.add(new DataProcessingInstruction<>(CMP, r0, 0));
-            Label trueLabel = data.getMessageLocation(new Identifier(BOOL, "true\\0"));
-            printInstrs.add(new SingleDataTransferInstruction<>(LDRNE, r0, trueLabel));
-            Label falseLabel = data.getMessageLocation(new Identifier(BOOL, "false\\0"));
-            printInstrs.add(new SingleDataTransferInstruction<>(LDREQ, r0, falseLabel));
-        }
-
-        if (type.equalsType(NULL)) {
-            printInstrs.add(new DataProcessingInstruction<>(MOV, r1, r0));
-            Label refLabel = data.getFormatSpecifier(type);
-            printInstrs.add(new SingleDataTransferInstruction<>(LDR, r0, refLabel));
-        }
-
-        printInstrs.add(new DataProcessingInstruction<>(ADD, r0, r0, 4));
-        printInstrs.add(new BranchInstruction(BL, new Label("printf")));
-        printInstrs.add(new DataProcessingInstruction<>(MOV, r0, 0));
-        printInstrs.add(new BranchInstruction(BL, new Label("fflush")));
-        printInstrs.add(new StackInstruction(POP, pc));
-
-        if (isPrintLn) {
-            visitPrintLn();
-        }
-
-        return null;
     }
 
     @Override
