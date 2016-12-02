@@ -14,7 +14,8 @@ public class SingleDataTransferInstruction<T> implements Instruction {
     public SingleDataTransferInstruction
             (SingleDataTransferType type, Register destination, T address) {
 
-        if(address instanceof Integer || address instanceof Label || address instanceof Register) {
+        if(address instanceof Integer || address instanceof Long ||
+                address instanceof Label || address instanceof Register) {
             this.type = type;
             this.destination = destination;
             this.address = address;
@@ -24,7 +25,7 @@ public class SingleDataTransferInstruction<T> implements Instruction {
     @Override
     public String toString() {
         String strAddress = "" + address;
-        if (address instanceof Integer) {
+        if (address instanceof Integer || address instanceof Long) {
             strAddress = "=" + address;
         }
         if (address instanceof Label) {
