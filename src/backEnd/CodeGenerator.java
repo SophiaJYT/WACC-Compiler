@@ -943,8 +943,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitIntLiter(@NotNull IntLiterContext ctx) {
         data.getMessageLocation(new Identifier(INT, ctx.getText()));
-        int intLiter = Integer.parseInt(ctx.getText());
-        instrs.add(new SingleDataTransferInstruction<>(LDR, freeRegisters.peek(), intLiter));
+        long longLiter = Long.parseLong(ctx.getText());
+        int intLiter = (int) (longLiter - 1);
+        instrs.add(new SingleDataTransferInstruction<>(LDR, freeRegisters.peek(), intLiter + 1));
         return INT;
     }
 
