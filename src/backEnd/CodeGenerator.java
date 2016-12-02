@@ -43,7 +43,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     private SymbolTable<Type> curr = head;
 
     private Data data = new Data();
-    private ExtraMethodGenerator methodGenerator = new ExtraMethodGenerator();
+    private ExtraMethodGenerator methodGenerator = new ExtraMethodGenerator(data);
 
     private static int MAX_STACK_OFFSET = 1024, ARRAY_SIZE = 4, PAIR_SIZE = 4, NEWPAIR_SIZE = 8;
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
@@ -424,6 +424,16 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitFreeStat(@NotNull FreeStatContext ctx) {
+        visitExpr(ctx.expr());
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, freeRegisters.peek()));
+        Label freePair = new Label("p_free_pair");
+        instrs.add(new BranchInstruction(BL, freePair));
+
+        Identifier ident = new Identifier(STRING, "NullReferenceError: dereference a null reference\\n\\0");
+        Label errorMsg = data.getMessageLocation(ident);
+
+        methodGenerator.freePair(freePair, errorMsg);
+
         return null;
     }
 
@@ -470,7 +480,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             instrs.add(new BranchInstruction(BL, new Label("putchar")));
         } else {
             instrs.add(new BranchInstruction(BL, printLabel));
-            data = methodGenerator.generatePrint(type, printLabel, data);
+            methodGenerator.generatePrint(type, printLabel);
         }
     }
 
@@ -636,7 +646,13 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         instrs.add(new SingleDataTransferInstruction<>(LDR, pair,
                 pairOffset == 0 ? sp : new ShiftRegister(SP, pairOffset, null)));
 
-        // Check null pointer
+        Label checkNullPointer = new Label("p_check_null_pointer");
+        Label nullReference = data.getMessageLocation(new Identifier(STRING,
+                "NullReferenceError: dereference a null reference\\n\\0"));
+
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, pair));
+        instrs.add(new BranchInstruction(BL, checkNullPointer));
+        methodGenerator.checkNullPointer(checkNullPointer, nullReference);
 
         instrs.add(new SingleDataTransferInstruction<>(LDR, dst,
                 elemOffset == 0 ? pair : new ShiftRegister(pair.getType(), elemOffset, null)));
@@ -723,12 +739,19 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         visitExpr(arg);
         Register var = freeRegisters.peek();
 
+
         switch (ctx.getText()) {
             case "!":
                 instrs.add(new DataProcessingInstruction<>(EOR, var, var, 1));
                 return BOOL;
             case "-":
+                Label overflowMsg = data.getMessageLocation(new Identifier(STRING,
+                        "OverflowError: the result is too small/large to store" +
+                                " in a 4-byte signed-integer.\\n"));
+                Label overflow = new Label("p_throw_overflow_error");
                 instrs.add(new DataProcessingInstruction<>(RSBS, var, var, 0));
+                instrs.add(new BranchInstruction(BLVS, overflow));
+                methodGenerator.throwOverflow(overflow, overflowMsg);
                 return INT;
             case "len":
                 instrs.add(new SingleDataTransferInstruction<>(LDR, var, var));
@@ -778,15 +801,31 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         Register var2 = freeRegisters.peek();
         Type retType = null;
 
+
+        Label overflowMsg = data.getMessageLocation(new Identifier(STRING,
+                "OverflowError: the result is too small/large to store" +
+                        " in a 4-byte signed-integer.\\n"));
+        Label overflow = new Label("p_throw_overflow_error");
+        Label divOrModByZeroError = data.getMessageLocation(new Identifier(STRING,
+                "DivideByZeroError: divide or modulo by zero\\n\\0"));
+        Label divOrModByZero = new Label("p_check_divide_by_zero");
+
+
         switch (ctx.getText()) {
             case "*":
                 instrs.add(new MultiplyInstruction(SMULL, var1, var2, var1, var2));
                 instrs.add(new DataProcessingInstruction<>(CMP, var2, var1, new ShiftInstruction(ASR, 31)));
+                instrs.add(new BranchInstruction(BLVS, overflow));
+                methodGenerator.throwOverflow(overflow, overflowMsg);
                 retType = INT;
                 break;
             case "/":
                 instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
                 instrs.add(new DataProcessingInstruction<>(MOV, r1, var2));
+
+                instrs.add(new BranchInstruction(BL, divOrModByZero));
+                methodGenerator.checkDivByZero(divOrModByZero, divOrModByZeroError);
+
                 instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
                 instrs.add(new DataProcessingInstruction<>(MOV, var1, r0));
                 instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
@@ -795,6 +834,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             case "%":
                 instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
                 instrs.add(new DataProcessingInstruction<>(MOV, r1, var2));
+
+                instrs.add(new BranchInstruction(BL, divOrModByZero));
+                methodGenerator.checkDivByZero(divOrModByZero, divOrModByZeroError);
+
                 instrs.add(new BranchInstruction(BL, new Label("__aeabi_idivmod")));
                 instrs.add(new DataProcessingInstruction<>(MOV, var1, r1));
                 instrs.add(new DataProcessingInstruction<>(MOV, r0, var1));
@@ -802,10 +845,14 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                 break;
             case "+":
                 instrs.add(new DataProcessingInstruction<>(ADDS, var1, var1, var2));
+                instrs.add(new BranchInstruction(BLVS, overflow));
+                methodGenerator.throwOverflow(overflow, overflowMsg);
                 retType = INT;
                 break;
             case "-":
                 instrs.add(new DataProcessingInstruction<>(SUBS, var1, var1, var2));
+                instrs.add(new BranchInstruction(BLVS, overflow));
+                methodGenerator.throwOverflow(overflow, overflowMsg);
                 retType = INT;
                 break;
             case ">":
@@ -872,6 +919,17 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         for (ExprContext index : ctx.expr()) {
             visitExpr(index);
             instrs.add(new SingleDataTransferInstruction<>(LDR, array, array));
+
+            instrs.add(new DataProcessingInstruction<>(MOV, r0, freeRegisters.peek()));
+            instrs.add(new DataProcessingInstruction<>(MOV, r1, array));
+            Label checkArray = new Label("p_check_array_bounds");
+            Label negIndex = data.getMessageLocation(new Identifier(STRING,
+                    "ArrayIndexOutOfBoundsError: negative index\\n\\0"));
+            Label largeIndex = data.getMessageLocation(new Identifier(STRING,
+                    "ArrayIndexOutOfBoundsError: index too large\\n\\0"));
+            instrs.add(new BranchInstruction(BL, checkArray));
+            methodGenerator.checkArrayBounds(checkArray, negIndex, largeIndex);
+
             instrs.add(new DataProcessingInstruction<>(ADD, array, array, 4));
             instrs.add(new DataProcessingInstruction<>(ADD, array, array, freeRegisters.peek(),
                     new ShiftInstruction(LSL, 2)));

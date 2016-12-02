@@ -37,5 +37,8 @@ public class Label implements Instruction{
         return  label + ":\n";
     }
 
-
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Label && getName().equals(((Label) obj).getName());
+    }
 }
