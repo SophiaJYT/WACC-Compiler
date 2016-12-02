@@ -736,15 +736,22 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         ExprContext e = (ExprContext) ctx.getParent();
         ExprContext arg = e.expr(0);
 
-        visitExpr(arg);
         Register var = freeRegisters.peek();
 
 
         switch (ctx.getText()) {
             case "!":
+                visitExpr(arg);
                 instrs.add(new DataProcessingInstruction<>(EOR, var, var, 1));
                 return BOOL;
             case "-":
+                if (arg.intLiter() != null) {
+                    String intVal = arg.intLiter().getText();
+                    data.getMessageLocation(new Identifier(INT, intVal));
+                    int intLiter = (int) (-1 * Long.parseLong(intVal));
+                    instrs.add(new SingleDataTransferInstruction<>(LDR, freeRegisters.peek(), intLiter));
+                    return INT;
+                }
                 Label overflowMsg = data.getMessageLocation(new Identifier(STRING,
                         "OverflowError: the result is too small/large to store" +
                                 " in a 4-byte signed-integer.\\n"));
@@ -754,11 +761,14 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
                 methodGenerator.throwOverflow(overflow, overflowMsg);
                 return INT;
             case "len":
+                visitExpr(arg);
                 instrs.add(new SingleDataTransferInstruction<>(LDR, var, var));
                 return INT;
             case "ord":
+                visitExpr(arg);
                 return INT;
             case "chr":
+                visitExpr(arg);
                 return CHAR;
         }
         return null;
@@ -815,7 +825,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             case "*":
                 instrs.add(new MultiplyInstruction(SMULL, var1, var2, var1, var2));
                 instrs.add(new DataProcessingInstruction<>(CMP, var2, var1, new ShiftInstruction(ASR, 31)));
-                instrs.add(new BranchInstruction(BLVS, overflow));
+                instrs.add(new BranchInstruction(BLNE, overflow));
                 methodGenerator.throwOverflow(overflow, overflowMsg);
                 retType = INT;
                 break;
@@ -943,7 +953,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitIntLiter(@NotNull IntLiterContext ctx) {
         data.getMessageLocation(new Identifier(INT, ctx.getText()));
-        long intLiter = Long.parseLong(ctx.getText());
+        int intLiter = Integer.parseInt(ctx.getText());
         instrs.add(new SingleDataTransferInstruction<>(LDR, freeRegisters.peek(), intLiter));
         return INT;
     }
