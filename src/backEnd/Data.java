@@ -138,10 +138,10 @@ public class Data {
     }
 
     private void addFormatSpecifiers() {
-        if (hasStringMessage && getFormatSpecifier(STRING) == null) {
+        if (hasStringMessage && formatSpecifiers.get(STRING) == null) {
             addFormatSpecifier(STRING);
         }
-        if (hasIntMessage && getFormatSpecifier(INT) == null) {
+        if (hasIntMessage && formatSpecifiers.get(INT) == null) {
             addFormatSpecifier(INT);
         }
     }
