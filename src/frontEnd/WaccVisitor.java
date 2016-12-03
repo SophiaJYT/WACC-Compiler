@@ -384,8 +384,26 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitNewPair(@NotNull NewPairContext ctx) {
-        Type lhs = visitExpr(ctx.expr(0));
-        Type rhs = visitExpr(ctx.expr(1));
+        ExprContext exprLhs = ctx.expr(0);
+        ExprContext exprRhs = ctx.expr(1);
+        Type lhs;
+        Type rhs;
+        if (exprLhs.ident() != null) {
+            String var = exprLhs.ident().getText();
+            lhs = curr.lookUpAll(var);
+            if (lhs == null) {
+                addSemanticError(ctx, "Variable '" + var + "' doesn't exist");
+            }
+        }
+        if (exprRhs.ident() != null) {
+            String var = exprRhs.ident().getText();
+            rhs = curr.lookUpAll(var);
+            if (rhs == null) {
+                addSemanticError(ctx, "Variable '" + var + "' doesn't exist");
+            }
+        }
+        lhs = visitExpr(exprLhs);
+        rhs = visitExpr(exprRhs);
         return new PairType(lhs, rhs);
     }
 
@@ -475,9 +493,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairElemType(@NotNull PairElemTypeContext ctx) {
-        if (ctx.PAIR() != null) {
-            return AllTypes.NULL;
-        }
         return visitChildren(ctx);
     }
 

@@ -708,9 +708,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitPairElemType(@NotNull PairElemTypeContext ctx) {
-        if (ctx.PAIR() != null) {
-            return NULL;
-        }
         return visitChildren(ctx);
     }
 

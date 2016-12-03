@@ -1,0 +1,13 @@
+# Create a nested pair and try to change the type of the pair elements in one
+# of the inner pairs
+
+# Output:
+# #sem
+
+begin
+  pair(int, char) p = newpair(1, 'a') ;
+  pair(int, pair(int, char)) q = newpair(2, p) ;
+  pair(pair(int, char), pair(int, pair(int, char))) r = newpair(p, q) ;
+  pair(int, pair(int, char)) _q = snd r ;
+  pair(int, bool) _p = snd _q
+end

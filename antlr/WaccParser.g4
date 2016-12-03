@@ -63,7 +63,7 @@ pairType: PAIR OPEN_PARENTHESES pairElemType COMMA pairElemType
 
 pairElemType: baseType
 | arrayType
-| PAIR ;
+| pairType ;
 
 expr: intLiter
 | boolLiter
