@@ -58,12 +58,13 @@ baseType: INT
 
 arrayType: type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET ;
 
-pairType: PAIR OPEN_PARENTHESES pairElemType COMMA pairElemType
-           CLOSE_PARENTHESES ;
-
 pairElemType: baseType
 | arrayType
+| PAIR
 | pairType ;
+
+pairType: PAIR OPEN_PARENTHESES pairElemType COMMA pairElemType
+           CLOSE_PARENTHESES ;
 
 expr: intLiter
 | boolLiter

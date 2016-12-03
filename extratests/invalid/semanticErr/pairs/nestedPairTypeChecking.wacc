@@ -11,8 +11,8 @@
 
 begin
   pair(int, char) p = newpair(1, 'a') ;
-  pair(int, pair(int, char)) q = newpair(2, p) ;
-  pair(pair(int, char), pair(int, pair(int, char))) r = newpair(p, q) ;
-  pair(int, pair(int, char)) _q = snd r ;
+  pair(int, pair) q = newpair(2, p) ;
+  pair(pair, pair) r = newpair(p, q) ;
+  pair(string, pair) _q = snd r ;
   pair(int, bool) _p = snd _q
 end

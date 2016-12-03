@@ -1,5 +1,7 @@
 package frontEnd;
 
+import static frontEnd.AllTypes.*;
+
 public class PairType implements Type {
 
     private Type lhs;
@@ -30,7 +32,7 @@ public class PairType implements Type {
             return ((this.getLeft().equalsType(thatPair.getLeft())) &&
                     this.getRight().equalsType(thatPair.getRight()));
         }
-        return that == AllTypes.NULL || that == AllTypes.ANY;
+        return that == NULL || that == ANY;
     }
 
 }
