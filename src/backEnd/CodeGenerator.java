@@ -24,12 +24,13 @@ import static frontEnd.AllTypes.*;
 public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     private StackVisitor stackVisitor = new StackVisitor();
-    private Dictionary<String, Integer> stackSpace = new Hashtable<>();
+    private SymbolTable<Integer> stackSpace = new SymbolTable<>();
     private SymbolTable<Dictionary<String, Integer>> heapSpace = new SymbolTable<>();
 
     private Register heapPtr = null;
 
-    private int arrayLength = 0, heapPos = 0, arrayPos = 0;
+    private int arrayLength = 0, heapPos = 0;
+    private SymbolTable<Integer> arrayPos = new SymbolTable<>();
 
     private int stackSize = 0, stackPos = 0, currVarPos = 0;
     private int funcSize = 0;
@@ -143,6 +144,36 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         instrs.add(new StackInstruction(POP, pc));
         instrs.add(new Directive("ltorg"));
+    }
+
+    private void visitNewScope(StatContext stat) {
+        // Create new scopes for current symbol table and stack space
+        curr = curr.startNewScope();
+        stackSpace = stackSpace.startNewScope();
+        arrayPos = arrayPos.startNewScope();
+
+        // Keep reference to position of the stack pointer
+        int oldStackPos = stackPos;
+
+        // Extend the stack with the size of the new scope
+        int scopeSize = stackVisitor.visit(stat);
+        if (stackPos != stackSize) {
+            stackPos = stackSize;
+        }
+        stackSize += scopeSize;
+        addSubStackInstrs(scopeSize);
+
+        // Visit the statements in the new scope
+        visit(stat);
+
+        // Reset the stack and symbol tables to the original states
+        addAddStackInstrs(scopeSize);
+        stackSize -= scopeSize;
+        stackPos = oldStackPos;
+
+        arrayPos = arrayPos.endCurrentScope();
+        stackSpace = stackSpace.endCurrentScope();
+        curr = curr.endCurrentScope();
     }
 
     private void addSubStackInstrs(int size) {
@@ -288,7 +319,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         }
         String varName = ctx.ident().getText();
         stackPos += size;
-        stackSpace.put(varName, stackPos - size);
+        stackSpace.add(varName, stackPos - size);
         curr.add(varName, type);
         return null;
     }
@@ -311,7 +342,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         int offset = stackSize - stackPos;
         String varName = ctx.ident().getText();
-        stackSpace.put(varName, offset);
+        stackSpace.add(varName, stackPos);
         curr.add(varName, lhs);
 
         if (lhs instanceof PairType) {
@@ -326,7 +357,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             heapSpace.add(varName, pairElems);
         }
 
-        addArrayElements(lhs, varName);
+        if (lhs instanceof ArrayType) {
+            arrayPos.add(varName, stackPos - ARRAY_SIZE);
+            addArrayElements(lhs, varName);
+        }
 
         SingleDataTransferType storeType = STR;
 
@@ -361,21 +395,21 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             String pairName = pairElemLhs.expr().getText();
             String elem = (pairElemLhs.FIRST() != null) ? "fst" : "snd";
             String pairElem = pairName + "." + elem;
-            lhs = curr.lookUp(pairElem);
+            lhs = curr.lookUpAll(pairElem);
             offset = 0;
             visitPairElem(pairElemLhs);
             dst = freeRegisters.peek();
             instrs.removeLast();
         } else if (arrayElemLhs != null) {
-            lhs = curr.lookUp(arrayElemLhs.ident().getText() + "[0]");
+            lhs = curr.lookUpAll(arrayElemLhs.ident().getText() + "[0]");
             offset = 0;
             visitArrayElem(arrayElemLhs);
             dst = freeRegisters.peek();
             instrs.removeLast();
         } else {
             String ident = ctx.assignLhs().getText();
-            lhs = curr.lookUp(ident);
-            offset = stackSpace.get(ident);
+            lhs = curr.lookUpAll(ident);
+            offset = stackSize - stackSpace.lookUpAll(ident);
             dst = sp;
         }
 
@@ -491,10 +525,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         visitExpr(ctx.expr());
         instrs.add(new DataProcessingInstruction<>(CMP, freeRegisters.peek(), 0));
         instrs.add(new BranchInstruction(BEQ, elseLabel));
-        visit(ctx.stat(0));
+        visitNewScope(ctx.stat(0));
         instrs.add(new BranchInstruction(B, fiLabel));
         instrs.add(elseLabel);
-        visit(ctx.stat(1));
+        visitNewScope(ctx.stat(1));
         instrs.add(fiLabel);
         return null;
     }
@@ -505,7 +539,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         Label loopLabel = getNonFunctionLabel();
         instrs.add(new BranchInstruction(B, exitLabel));
         instrs.add(loopLabel);
-        visit(ctx.stat());
+        visitNewScope(ctx.stat());
         instrs.add(exitLabel);
         visitExpr(ctx.expr());
         instrs.add(new DataProcessingInstruction<>(CMP, freeRegisters.peek(), 1));
@@ -515,25 +549,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitBeginEnd(@NotNull BeginEndContext ctx) {
-        // Create new scopes for current symbol table and stack space
-        curr = curr.startNewScope();
-        Dictionary<String, Integer> oldStack = stackSpace;
-        stackSpace = new Hashtable<>();
-        int oldSize = stackSize;
-
-        Integer size = stackVisitor.visit(ctx.stat());
-        stackSize = (size == null) ? 0 : size;
-
-        addSubStackInstrs(stackSize);
-
-        visit(ctx.stat());
-
-        addAddStackInstrs(stackSize);
-
-        stackSpace = oldStack;
-        stackSize = oldSize;
-        curr = curr.endCurrentScope();
-
+        visitNewScope(ctx.stat());
         return null;
     }
 
@@ -636,8 +652,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         String pairName = ctx.expr().getText();
         String elem = ctx.FIRST() != null ? "fst" : "snd";
         String pairElem = pairName + "." + elem;
-        int pairOffset = stackSpace.get(pairName);
-        int elemOffset = heapSpace.lookUp(pairName).get(pairElem);
+        int pairOffset = stackSize - stackSpace.lookUpAll(pairName);
+        int elemOffset = heapSpace.lookUpAll(pairName).get(pairElem);
         Register pair = freeRegisters.pop();
         Register dst = freeRegisters.peek();
         Type type = curr.lookUpAll(pairElem);
@@ -910,8 +926,9 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitIdent(@NotNull IdentContext ctx) {
-        currVarPos = stackSpace.get(ctx.getText());
-        Type type = curr.lookUpAll(ctx.getText());
+        String ident = ctx.getText();
+        currVarPos = stackSize - stackSpace.lookUpAll(ident);
+        Type type = curr.lookUpAll(ident);
         SingleDataTransferType loadRegType = LDR;
         if (type.equalsType(CHAR) || type.equalsType(BOOL)) {
             loadRegType = LDRSB;
@@ -924,9 +941,14 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitArrayElem(@NotNull ArrayElemContext ctx) {
         Register array = freeRegisters.pop();
-        instrs.add(new DataProcessingInstruction<>(ADD, array, sp, stackPos - ARRAY_SIZE - arrayPos));
+        String arrayName = ctx.ident().getText();
+        int offset = stackPos - ARRAY_SIZE - arrayPos.lookUpAll(arrayName);
+        instrs.add(new DataProcessingInstruction<>(ADD, array, sp, offset));
         String arrayElem = ctx.ident().getText();
+        Type type = NULL;
         for (ExprContext index : ctx.expr()) {
+            arrayElem += "[0]";
+            type = curr.lookUp(arrayElem);
             visitExpr(index);
             instrs.add(new SingleDataTransferInstruction<>(LDR, array, array));
 
@@ -941,13 +963,20 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             methodGenerator.checkArrayBounds(checkArray, negIndex, largeIndex);
 
             instrs.add(new DataProcessingInstruction<>(ADD, array, array, 4));
-            instrs.add(new DataProcessingInstruction<>(ADD, array, array, freeRegisters.peek(),
-                    new ShiftInstruction(LSL, 2)));
-            arrayElem += "[0]";
+            if (type.equalsType(BOOL) || type.equalsType(CHAR)) {
+                instrs.add(new DataProcessingInstruction<>(ADD, array, array, freeRegisters.peek()));
+            } else {
+                instrs.add(new DataProcessingInstruction<>(ADD, array, array, freeRegisters.peek(),
+                        new ShiftInstruction(LSL, 2)));
+            }
         }
-        instrs.add(new SingleDataTransferInstruction<>(LDR, array, array));
+        SingleDataTransferType loadType = LDR;
+        if (type.equalsType(BOOL) || type.equalsType(CHAR)) {
+            loadType = LDRSB;
+        }
+        instrs.add(new SingleDataTransferInstruction<>(loadType, array, array));
         freeRegisters.push(array);
-        return curr.lookUp(arrayElem);
+        return type;
     }
 
     @Override
@@ -991,17 +1020,18 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitArrayLiter(@NotNull ArrayLiterContext ctx) {
-        arrayPos = stackPos - ARRAY_SIZE;
-        arrayLength = ctx.expr().size();
+        int correctArrayLength = ctx.expr().size();
+        arrayLength = correctArrayLength;
         int exprSize = 0;
         int reserve = INT_SIZE;
         Type type = NULL;
 
         if (arrayLength != 0) {
             type = visitExpr(ctx.expr(0));
+            arrayLength = correctArrayLength;
             instrs.removeLast();
             exprSize = getExprSize(type);
-            reserve += (arrayLength * exprSize);
+            reserve = INT_SIZE + arrayLength * exprSize;
         }
 
         instrs.add(new SingleDataTransferInstruction<>(LDR, r0, reserve));
@@ -1019,6 +1049,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         for (int count = 0; count < arrayLength; count++) {
             ExprContext e = ctx.expr(count);
             visitExpr(e);
+            arrayLength = correctArrayLength;
             instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, expr,
                     new ShiftRegister(array.getType(), offset + count * exprSize, null)));
         }
