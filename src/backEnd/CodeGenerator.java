@@ -485,16 +485,19 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     }
 
     @Override
-    public Type visitIfElseStat(@NotNull IfStatContext ctx) {
-        Label elseLabel = getNonFunctionLabel();
+    public Type visitIfStat(@NotNull IfStatContext ctx) {
+        boolean hasElse = ctx.ELSE() != null;
         Label fiLabel = getNonFunctionLabel();
+        Label elseLabel = getNonFunctionLabel();
         visitExpr(ctx.expr());
         instrs.add(new DataProcessingInstruction<>(CMP, freeRegisters.peek(), 0));
-        instrs.add(new BranchInstruction(BEQ, elseLabel));
+        instrs.add(new BranchInstruction(BEQ, hasElse ? elseLabel : fiLabel));
         visit(ctx.stat(0));
-        instrs.add(new BranchInstruction(B, fiLabel));
-        instrs.add(elseLabel);
-        visit(ctx.stat(1));
+        if (hasElse) {
+            instrs.add(new BranchInstruction(B, fiLabel));
+            instrs.add(elseLabel);
+            visit(ctx.stat(1));
+        }
         instrs.add(fiLabel);
         return null;
     }

@@ -287,23 +287,29 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     }
 
     @Override
-    public Type visitIfElseStat(@NotNull IfStatContext ctx) {
+    public Type visitIfStat(@NotNull IfStatContext ctx) {
         if (visitExpr(ctx.expr()) != AllTypes.BOOL) {
             addSemanticError(ctx, "If condition must evaluate to a bool value");
         }
 
         // Check that we have the right number of statements
-        if (ctx.stat().size() <  2) {
+        boolean hasElse = ctx.ELSE() != null;
+
+        if (ctx.stat().size() < (hasElse ? 2 : 1)) {
             return null;
         }
+
+        Type elseStat = null;
 
         curr = curr.startNewScope();
         Type thenStat = visit(ctx.stat(0));
         curr = curr.endCurrentScope();
 
-        curr = curr.startNewScope();
-        Type elseStat = visit(ctx.stat(1));
-        curr = curr.endCurrentScope();
+        if (hasElse) {
+            curr = curr.startNewScope();
+            elseStat = visit(ctx.stat(1));
+            curr = curr.endCurrentScope();
+        }
 
         if (thenStat != null && elseStat != null) {
             if (thenStat.equalsType(elseStat)) {
