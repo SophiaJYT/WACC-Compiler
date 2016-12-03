@@ -4,6 +4,8 @@
 # Output:
 # true
 
+# Program:
+
 begin
   pair(int, string) p = newpair(1, "a") ;
   pair(int, pair(int, string)) q = newpair(2, p) ;

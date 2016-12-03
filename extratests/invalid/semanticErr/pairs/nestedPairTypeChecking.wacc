@@ -2,7 +2,12 @@
 # of the inner pairs
 
 # Output:
-# #sem
+# #semantic_error#
+
+# Exit:
+# 200
+
+# Program:
 
 begin
   pair(int, char) p = newpair(1, 'a') ;
