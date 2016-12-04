@@ -520,15 +520,18 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitIfStat(@NotNull IfStatContext ctx) {
-        Label elseLabel = getNonFunctionLabel();
+        boolean hasElse = ctx.ELSE() != null;
         Label fiLabel = getNonFunctionLabel();
+        Label elseLabel = getNonFunctionLabel();
         visitExpr(ctx.expr());
         instrs.add(new DataProcessingInstruction<>(CMP, freeRegisters.peek(), 0));
-        instrs.add(new BranchInstruction(BEQ, elseLabel));
+        instrs.add(new BranchInstruction(BEQ, hasElse ? elseLabel : fiLabel));
         visitNewScope(ctx.stat(0));
-        instrs.add(new BranchInstruction(B, fiLabel));
-        instrs.add(elseLabel);
-        visitNewScope(ctx.stat(1));
+        if (hasElse) {
+            instrs.add(new BranchInstruction(B, fiLabel));
+            instrs.add(elseLabel);
+            visitNewScope(ctx.stat(1));
+        }
         instrs.add(fiLabel);
         return null;
     }

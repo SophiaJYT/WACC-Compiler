@@ -21,8 +21,10 @@ stat: SKIP                                                              #skip
 | EXIT expr                                                             #exitStat
 | PRINT expr                                                            #printStat
 | PRINTLN expr                                                          #printlnStat
-| IF expr THEN stat ELSE stat FI                                        #ifStat
+| IF expr THEN stat (ELSE stat)? FI                                     #ifStat
 | WHILE expr DO stat DONE                                               #whileStat
+//| DO stat WHILE expr DONE?                                              #doWhileStat
+//| FOR OPEN_PARENTHESES stat expr stat CLOSE_PARANTHESES stat            #forStat
 | BEGIN stat END                                                        #beginEnd
 | stat SEMI_COLON stat                                                  #statSequence;
 
@@ -56,12 +58,13 @@ baseType: INT
 
 arrayType: type OPEN_SQUARE_BRACKET CLOSE_SQUARE_BRACKET ;
 
-pairType: PAIR OPEN_PARENTHESES pairElemType COMMA pairElemType
-           CLOSE_PARENTHESES ;
-
 pairElemType: baseType
 | arrayType
-| PAIR ;
+| PAIR
+| pairType ;
+
+pairType: PAIR OPEN_PARENTHESES pairElemType COMMA pairElemType
+           CLOSE_PARENTHESES ;
 
 expr: intLiter
 | boolLiter

@@ -1,0 +1,18 @@
+# Create a nested pair and try to change the type of the pair elements in one
+# of the inner pairs
+
+# Output:
+# #semantic_error#
+
+# Exit:
+# 200
+
+# Program:
+
+begin
+  pair(int, char) p = newpair(1, 'a') ;
+  pair(int, pair) q = newpair(2, p) ;
+  pair(pair, pair) r = newpair(p, q) ;
+  pair(string, pair) _q = snd r ;
+  pair(int, bool) _p = snd _q
+end

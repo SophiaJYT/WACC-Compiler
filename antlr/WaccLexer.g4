@@ -18,6 +18,7 @@ ELSE: 'else' ;
 FI: 'fi' ;
 WHILE: 'while' ;
 DO: 'do' ;
+FOR: 'for' ;
 DONE: 'done' ;
 BEGIN: 'begin' ;
 END: 'end' ;
