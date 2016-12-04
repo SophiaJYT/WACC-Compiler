@@ -217,10 +217,13 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                 Type rhs = replaceNullReferences(expectedPair.getRight(), actualPair.getRight(), ctx);
                 return new PairType(lhs, rhs);
             }
+            if (actual == NULL) {
+                return NULL;
+            }
             addSemanticError(ctx, "Type '" + expected + "' does not match type '" + actual + "'");
         }
         if (expected == NULL) {
-            if (actual instanceof PairType) {
+            if (expected.equalsType(actual)) {
                 return actual;
             }
             addSemanticError(ctx, "Type '" + expected + "' does not match type '" + actual + "'");
