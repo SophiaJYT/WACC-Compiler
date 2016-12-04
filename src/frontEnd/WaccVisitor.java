@@ -217,12 +217,12 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                 Type rhs = replaceNullReferences(expectedPair.getRight(), actualPair.getRight(), ctx);
                 return new PairType(lhs, rhs);
             }
-            if (actual == NULL) {
-                return NULL;
+            if (actual.equalsType(NULL)) {
+                return expected;
             }
             addSemanticError(ctx, "Type '" + expected + "' does not match type '" + actual + "'");
         }
-        if (expected == NULL) {
+        if (expected.equalsType(NULL)) {
             if (expected.equalsType(actual)) {
                 return actual;
             }
@@ -285,7 +285,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         if (type == null) {
             addSemanticError(ctx, "Variable '" + var + "' has not been declared");
         }
-        if (!(type instanceof ArrayType || type instanceof PairType)) {
+        if (!type.equalsType(NULL)) {
             addSemanticError(ctx, "Variable '" + var + "' must be a reference to an array or pair");
         }
         return null;
