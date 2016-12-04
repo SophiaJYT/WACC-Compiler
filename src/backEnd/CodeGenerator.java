@@ -506,10 +506,12 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         return Arrays.asList(stats);
     }
 
-    private Type visitWhile(ExprContext expr, List<StatContext> stats) {
+    private Type visitWhile(ExprContext expr, List<StatContext> stats, boolean isDoWhile) {
         Label exitLabel = getNonFunctionLabel();
         Label loopLabel = getNonFunctionLabel();
-        instrs.add(new BranchInstruction(B, exitLabel));
+        if (!isDoWhile) {
+            instrs.add(new BranchInstruction(B, exitLabel));
+        }
         instrs.add(loopLabel);
         for (StatContext stat : stats) {
             visit(stat);
@@ -523,22 +525,19 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitWhileStat(@NotNull WhileStatContext ctx) {
-        return visitWhile(ctx.expr(), initialiseStatList(ctx.stat()));
+        return visitWhile(ctx.expr(), initialiseStatList(ctx.stat()), false);
     }
 
     @Override
     public Type visitDoWhileStat(@NotNull DoWhileStatContext ctx) {
-        visit(ctx.stat());
-        return visitWhile(ctx.expr(), initialiseStatList(ctx.stat()));
+        return visitWhile(ctx.expr(), initialiseStatList(ctx.stat()), true);
     }
 
     @Override
     public Type visitForStat(@NotNull ForStatContext ctx) {
         visit(ctx.stat(0));
-        return visitWhile(ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)));
+        return visitWhile(ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)), false);
     }
-
-
 
     @Override
     public Type visitBeginEnd(@NotNull BeginEndContext ctx) {
