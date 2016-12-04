@@ -8,6 +8,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.RuleNode;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static frontEnd.AllTypes.*;
@@ -227,15 +228,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         return expected;
     }
 
-    private boolean hasNullReference(Type expected) {
-        if (expected instanceof PairType) {
-            Type expectedLhs = ((PairType) expected).getLeft();
-            Type expectedRhs = ((PairType) expected).getRight();
-            return hasNullReference(expectedLhs) || hasNullReference(expectedRhs);
-        }
-        return expected == NULL;
-    }
-
     @Override
     public Type visitVarAssign(@NotNull VarAssignContext ctx) {
         AssignLhsContext lhs = ctx.assignLhs();
@@ -357,23 +349,44 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         return null;
     }
 
-    @Override
-    public Type visitWhileStat(@NotNull WhileStatContext ctx) {
-        Type expected = visitExpr(ctx.expr());
-        if (expected == null) {
+    private List<StatContext> initialiseStatList(StatContext... stats) {
+        return Arrays.asList(stats);
+    }
+
+    private Type visitWhile(ParserRuleContext ctx, ExprContext expr, List<StatContext> stats) {
+        Type actual = visitExpr(expr);
+        if (actual == null) {
             return null;
         }
-        if (!expected.equalsType(BOOL)) {
-            addSemanticError(ctx, "While condition must evaluate to a 'bool' value");
+        if (!actual.equalsType(BOOL)) {
+            addSemanticError(ctx, "Invalid loop condition type (expected: '"
+                    + BOOL + "', actual: '" + actual + "'");
         }
         curr = curr.startNewScope();
-        StatContext stat = ctx.stat();
-        if (stat == null) {
-            return null;
+        for (StatContext stat : stats) {
+            if (stat == null) {
+                return null;
+            }
+            visitChildren(stat);
         }
-        visitChildren(stat);
         curr = curr.endCurrentScope();
         return null;
+    }
+
+    @Override
+    public Type visitWhileStat(@NotNull WhileStatContext ctx) {
+        return visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat()));
+    }
+
+    @Override
+    public Type visitDoWhileStat(@NotNull DoWhileStatContext ctx) {
+        return visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat()));
+    }
+
+    @Override
+    public Type visitForStat(@NotNull ForStatContext ctx) {
+        visit(ctx.stat(0));
+        return visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)));
     }
 
     @Override

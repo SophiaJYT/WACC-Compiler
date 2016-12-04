@@ -23,8 +23,9 @@ stat: SKIP                                                              #skip
 | PRINTLN expr                                                          #printlnStat
 | IF expr THEN stat (ELSE stat)? FI                                     #ifStat
 | WHILE expr DO stat DONE                                               #whileStat
-//| DO stat WHILE expr DONE?                                              #doWhileStat
-//| FOR OPEN_PARENTHESES stat expr stat CLOSE_PARANTHESES stat            #forStat
+| DO stat WHILE expr DONE                                               #doWhileStat
+| FOR OPEN_PARENTHESES stat SEMI_COLON expr
+  SEMI_COLON stat CLOSE_PARENTHESES DO stat DONE                        #forStat
 | BEGIN stat END                                                        #beginEnd
 | stat SEMI_COLON stat                                                  #statSequence;
 
