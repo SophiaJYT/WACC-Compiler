@@ -29,8 +29,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     private Register heapPtr = null;
 
-    private int arrayLength = 0, heapPos = 0;
-    private SymbolTable<Integer> arrayPos = new SymbolTable<>();
+    private int heapPos = 0;
+    private SymbolTable<Integer> arrayPositions = new SymbolTable<>();
 
     private int stackSize = 0, stackPos = 0, currVarPos = 0;
     private int funcSize = 0;
@@ -150,13 +150,16 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         // Create new scopes for current symbol table and stack space
         curr = curr.startNewScope();
         stackSpace = stackSpace.startNewScope();
-        arrayPos = arrayPos.startNewScope();
+        arrayPositions = arrayPositions.startNewScope();
 
         // Keep reference to position of the stack pointer
         int oldStackPos = stackPos;
 
         // Extend the stack with the size of the new scope
-        int scopeSize = stackVisitor.visit(stat);
+        Integer scopeSize = stackVisitor.visit(stat);
+        if (scopeSize == null) {
+            scopeSize = 0;
+        }
         if (stackPos != stackSize) {
             stackPos = stackSize;
         }
@@ -171,7 +174,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         stackSize -= scopeSize;
         stackPos = oldStackPos;
 
-        arrayPos = arrayPos.endCurrentScope();
+        arrayPositions = arrayPositions.endCurrentScope();
         stackSpace = stackSpace.endCurrentScope();
         curr = curr.endCurrentScope();
     }
@@ -221,25 +224,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             return PAIR_SIZE;
         }
         return 0;
-    }
-
-
-    private void addArrayElements(Type lhs, String varName) {
-        if (lhs instanceof ArrayType || lhs.equalsType(STRING)) {
-            Dictionary<String, Integer> arrayElems = new Hashtable<>();
-            Type exprType = lhs instanceof ArrayType ? ((ArrayType) lhs).getElement() : CHAR;
-            int exprSize = getExprSize(exprType);
-            int arraySize = arrayLength * exprSize;
-            heapPos = arrayLength * exprSize - INT_SIZE;
-            for (int i = 0; i < arrayLength; i++) {
-                String arrayElem = varName + "[" + i + "]";
-                arrayElems.put(arrayElem, arraySize - heapPos);
-                curr.add(arrayElem, exprType);
-                addArrayElements(exprType, arrayElem);
-                heapPos -= exprSize;
-            }
-            heapSpace.add(varName, arrayElems);
-        }
     }
 
     //------------------------------VISIT METHODS----------------------------//
@@ -357,9 +341,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             heapSpace.add(varName, pairElems);
         }
 
-        if (lhs instanceof ArrayType) {
-            arrayPos.add(varName, stackPos - ARRAY_SIZE);
-            addArrayElements(lhs, varName);
+        if (lhs instanceof ArrayType || lhs.equalsType(STRING)) {
+            arrayPositions.add(varName, stackPos /*- ARRAY_SIZE*/);
         }
 
         SingleDataTransferType storeType = STR;
@@ -401,7 +384,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             dst = freeRegisters.peek();
             instrs.removeLast();
         } else if (arrayElemLhs != null) {
-            lhs = curr.lookUpAll(arrayElemLhs.ident().getText() + "[0]");
+            lhs = curr.lookUpAll(arrayElemLhs.ident().getText());
+            lhs = getArrayElemType(lhs);
             offset = 0;
             visitArrayElem(arrayElemLhs);
             dst = freeRegisters.peek();
@@ -429,6 +413,16 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         return null;
 
+    }
+
+    private Type getArrayElemType(Type lhs) {
+        if (lhs instanceof ArrayType) {
+            lhs = ((ArrayType) lhs).getElement();
+        }
+        if (lhs.equalsType(STRING)) {
+            lhs = CHAR;
+        }
+        return lhs;
     }
 
     private void resetHeapPointer() {
@@ -945,13 +939,11 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     public Type visitArrayElem(@NotNull ArrayElemContext ctx) {
         Register array = freeRegisters.pop();
         String arrayName = ctx.ident().getText();
-        int offset = stackPos - ARRAY_SIZE - arrayPos.lookUpAll(arrayName);
+        int offset = stackPos - arrayPositions.lookUpAll(arrayName);
         instrs.add(new DataProcessingInstruction<>(ADD, array, sp, offset));
-        String arrayElem = ctx.ident().getText();
-        Type type = NULL;
+        Type type = curr.lookUpAll(arrayName);
         for (ExprContext index : ctx.expr()) {
-            arrayElem += "[0]";
-            type = curr.lookUp(arrayElem);
+            type = getArrayElemType(type);
             visitExpr(index);
             instrs.add(new SingleDataTransferInstruction<>(LDR, array, array));
 
@@ -1012,7 +1004,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     @Override
     public Type visitStrLiter(@NotNull StrLiterContext ctx) {
         String value = ctx.getText().substring(1, ctx.getText().length() - 1);
-        arrayLength = value.length();
         Identifier ident = new Identifier(STRING, value);
         Label msg = data.getMessageLocation(ident);
         instrs.add(new SingleDataTransferInstruction<>(LDR, freeRegisters.peek(), msg));
@@ -1023,15 +1014,13 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitArrayLiter(@NotNull ArrayLiterContext ctx) {
-        int correctArrayLength = ctx.expr().size();
-        arrayLength = correctArrayLength;
+        int arrayLength = ctx.expr().size();
         int exprSize = 0;
         int reserve = INT_SIZE;
         Type type = NULL;
 
         if (arrayLength != 0) {
             type = visitExpr(ctx.expr(0));
-            arrayLength = correctArrayLength;
             instrs.removeLast();
             exprSize = getExprSize(type);
             reserve = INT_SIZE + arrayLength * exprSize;
@@ -1051,8 +1040,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         for (int count = 0; count < arrayLength; count++) {
             ExprContext e = ctx.expr(count);
-            visitExpr(e);
-            arrayLength = correctArrayLength;
+            Type exprType = visitExpr(e);
             instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, expr,
                     new ShiftRegister(array.getType(), offset + count * exprSize, null)));
         }
