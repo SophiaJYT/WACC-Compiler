@@ -22,9 +22,10 @@ stat: SKIP                                                              #skip
 | PRINT expr                                                            #printStat
 | PRINTLN expr                                                          #printlnStat
 | IF expr THEN stat (ELSE stat)? FI                                     #ifStat
+| DO stat WHILE expr DONE                                               #doWhileStat
+| FOR OPEN_PARENTHESES stat SEMI_COLON expr
+  SEMI_COLON stat CLOSE_PARENTHESES DO stat DONE                        #forStat
 | WHILE expr DO stat DONE                                               #whileStat
-//| DO stat WHILE expr DONE?                                              #doWhileStat
-//| FOR OPEN_PARENTHESES stat expr stat CLOSE_PARANTHESES stat            #forStat
 | BEGIN stat END                                                        #beginEnd
 | stat SEMI_COLON stat                                                  #statSequence;
 
@@ -66,7 +67,8 @@ pairElemType: baseType
 pairType: PAIR OPEN_PARENTHESES pairElemType COMMA pairElemType
            CLOSE_PARENTHESES ;
 
-expr: intLiter
+expr: bracketExpr
+| intLiter
 | boolLiter
 | charLiter
 | strLiter
@@ -75,8 +77,7 @@ expr: intLiter
 | arrayElem
 | expr binaryOper expr
 | expr boolBinaryOper expr
-| unaryOper expr
-| bracketExpr ;
+| unaryOper expr ;
 
 bracketExpr: OPEN_PARENTHESES expr CLOSE_PARENTHESES ;
 

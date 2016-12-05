@@ -530,18 +530,41 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         return null;
     }
 
-    @Override
-    public Type visitWhileStat(@NotNull WhileStatContext ctx) {
+    private List<StatContext> initialiseStatList(StatContext... stats) {
+        return Arrays.asList(stats);
+    }
+
+    private Type visitWhile(ExprContext expr, List<StatContext> stats, boolean isDoWhile) {
         Label exitLabel = getNonFunctionLabel();
         Label loopLabel = getNonFunctionLabel();
-        instrs.add(new BranchInstruction(B, exitLabel));
+        if (!isDoWhile) {
+            instrs.add(new BranchInstruction(B, exitLabel));
+        }
         instrs.add(loopLabel);
-        visitNewScope(ctx.stat());
+        for (StatContext stat : stats) {
+            visitNewScope(stat);
+        }
         instrs.add(exitLabel);
-        visitExpr(ctx.expr());
+        visitExpr(expr);
         instrs.add(new DataProcessingInstruction<>(CMP, freeRegisters.peek(), 1));
         instrs.add(new BranchInstruction(BEQ, loopLabel));
         return null;
+    }
+
+    @Override
+    public Type visitWhileStat(@NotNull WhileStatContext ctx) {
+        return visitWhile(ctx.expr(), initialiseStatList(ctx.stat()), false);
+    }
+
+    @Override
+    public Type visitDoWhileStat(@NotNull DoWhileStatContext ctx) {
+        return visitWhile(ctx.expr(), initialiseStatList(ctx.stat()), true);
+    }
+
+    @Override
+    public Type visitForStat(@NotNull ForStatContext ctx) {
+        visit(ctx.stat(0));
+        return visitWhile(ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)), false);
     }
 
     @Override
