@@ -357,9 +357,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     }
 
     private Type visitWhile(ParserRuleContext ctx, ExprContext expr, List<StatContext> stats) {
-        if (expr == null) {
-            return null;
-        }
         Type actual = visitExpr(expr);
         if (actual == null) {
             return null;
@@ -556,6 +553,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitExpr(@NotNull ExprContext ctx) {
+        if(ctx == null) {
+            return ANY;
+        }
         if (ctx.binaryOper() != null) {
             return visitBinaryOper(ctx.binaryOper());
         }
