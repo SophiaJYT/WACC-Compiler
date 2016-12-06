@@ -1,0 +1,14 @@
+#Wrong stats inside
+
+#Output:
+# semantic error
+
+#Program:
+
+
+begin
+  for (int i = 0; i + 10; i = i + 1)
+  do
+    println i
+  done
+end
