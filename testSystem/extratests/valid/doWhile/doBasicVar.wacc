@@ -1,0 +1,6 @@
+begin
+  int i = 0 ;
+  do
+    println i
+  while i < 0 done
+end

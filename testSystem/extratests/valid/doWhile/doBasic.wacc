@@ -1,0 +1,13 @@
+# simple do while loop
+
+# Output:
+# #empty#
+
+# Program:
+
+begin
+  do
+    skip
+  while false
+  done
+end
