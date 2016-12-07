@@ -388,6 +388,11 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitForStat(@NotNull ForStatContext ctx) {
+        StatContext stat = ctx.stat(0);
+        if (!(stat instanceof VarInitContext || stat instanceof VarAssignContext)) {
+            listener.addSyntaxError(ctx, "First statement in for loop must be an initialising statement");
+            return null;
+        }
         visit(ctx.stat(0));
         return visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)));
     }
