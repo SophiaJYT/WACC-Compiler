@@ -1,5 +1,6 @@
 package frontEnd;
 
+import antlr.WaccParser;
 import antlr.WaccParser.*;
 import antlr.WaccParserBaseVisitor;
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -356,7 +357,8 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         return Arrays.asList(stats);
     }
 
-    private Type visitWhile(ParserRuleContext ctx, ExprContext expr, List<StatContext> stats) {
+    private Type visitWhile(ParserRuleContext ctx, ExprContext expr,
+                            List<StatContext> body, StatContext initialiser) {
         Type actual = visitExpr(expr);
         if (actual == null) {
             return null;
@@ -366,7 +368,18 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
                     + BOOL + "', actual: '" + actual + "'");
         }
         curr = curr.startNewScope();
-        for (StatContext stat : stats) {
+        if (initialiser != null) {
+            String var = "";
+            if (initialiser instanceof VarInitContext) {
+                var = ((VarInitContext) initialiser).ident().getText();
+            }
+            if (initialiser instanceof VarAssignContext) {
+                var = ((VarAssignContext) initialiser).assignLhs().getText();
+            }
+            Type type = curr.lookUpAll(var);
+            curr.add(var, type);
+        }
+        for (StatContext stat : body) {
             if (stat == null) {
                 return null;
             }
@@ -378,12 +391,12 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitWhileStat(@NotNull WhileStatContext ctx) {
-        return visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat()));
+        return visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat()), null);
     }
 
     @Override
     public Type visitDoWhileStat(@NotNull DoWhileStatContext ctx) {
-        return visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat()));
+        return visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat()), null);
     }
 
     @Override
@@ -393,8 +406,11 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             listener.addSyntaxError(ctx, "First statement in for loop must be an initialising statement");
             return null;
         }
-        visit(ctx.stat(0));
-        return visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)));
+        curr = curr.startNewScope();
+        visit(stat);
+        visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)), stat);
+        curr = curr.endCurrentScope();
+        return null;
     }
 
     @Override
