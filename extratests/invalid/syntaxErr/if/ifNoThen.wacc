@@ -1,0 +1,16 @@
+# if missing then clause
+
+# Output:
+# #syntax_error#
+
+# Exit:
+# 100
+
+# Program:
+
+begin
+  if true 
+    skip
+  fi
+end
+
