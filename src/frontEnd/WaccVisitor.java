@@ -24,6 +24,8 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     private SymbolTable<Type> head;
     private SymbolTable<Type> curr;
 
+    private boolean isInLoop;
+
     public WaccVisitor(SyntaxErrorListener listener) {
         this.listener = listener;
         semanticErrors = new ArrayList<>();
@@ -379,12 +381,14 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             Type type = curr.lookUpAll(var);
             curr.add(var, type);
         }
+        isInLoop = true;
         for (StatContext stat : body) {
             if (stat == null) {
                 return null;
             }
             visitChildren(stat);
         }
+        isInLoop = false;
         curr = curr.endCurrentScope();
         return null;
     }
@@ -410,6 +414,26 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         visit(stat);
         visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)), stat);
         curr = curr.endCurrentScope();
+        return null;
+    }
+
+    private void checkIfInLoop(@NotNull ParserRuleContext ctx) {
+        if (!isInLoop) {
+            String statement = ctx.getText();
+            statement = ("" + statement.charAt(0)).toUpperCase().concat(statement.substring(1));
+            listener.addSyntaxError(ctx, statement + " statement can only be used inside a loop statement");
+        }
+    }
+
+    @Override
+    public Type visitBreak(@NotNull BreakContext ctx) {
+        checkIfInLoop(ctx);
+        return null;
+    }
+
+    @Override
+    public Type visitContinue(@NotNull ContinueContext ctx) {
+        checkIfInLoop(ctx);
         return null;
     }
 

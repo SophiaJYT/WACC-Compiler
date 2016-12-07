@@ -1,0 +1,15 @@
+begin
+  int i = 0 ;
+  while true
+  do
+    i = i + 1 ;
+    if i < 10
+    then
+      print i ;
+      print ", "
+    else
+      print i ;
+      break
+    fi
+  done
+end

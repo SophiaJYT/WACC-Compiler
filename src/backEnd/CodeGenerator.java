@@ -46,6 +46,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     private Data data = new Data();
     private ExtraMethodGenerator methodGenerator = new ExtraMethodGenerator(data);
 
+    private Label loopLabel, exitLabel;
+
     private static int MAX_STACK_OFFSET = 1024, ARRAY_SIZE = 4, PAIR_SIZE = 4, NEWPAIR_SIZE = 8;
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
 
@@ -535,19 +537,21 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     }
 
     private Type visitWhile(ExprContext expr, List<StatContext> stats, boolean isDoWhile) {
-        Label exitLabel = getNonFunctionLabel();
-        Label loopLabel = getNonFunctionLabel();
+        Label condLabel = getNonFunctionLabel();
+        loopLabel = getNonFunctionLabel();
+        exitLabel = getNonFunctionLabel();
         if (!isDoWhile) {
-            instrs.add(new BranchInstruction(B, exitLabel));
+            instrs.add(new BranchInstruction(B, condLabel));
         }
         instrs.add(loopLabel);
         for (StatContext stat : stats) {
             visitNewScope(stat);
         }
-        instrs.add(exitLabel);
+        instrs.add(condLabel);
         visitExpr(expr);
         instrs.add(new DataProcessingInstruction<>(CMP, freeRegisters.peek(), 1));
         instrs.add(new BranchInstruction(BEQ, loopLabel));
+        instrs.add(exitLabel);
         return null;
     }
 
@@ -565,6 +569,18 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     public Type visitForStat(@NotNull ForStatContext ctx) {
         visit(ctx.stat(0));
         return visitWhile(ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)), false);
+    }
+
+    @Override
+    public Type visitBreak(@NotNull BreakContext ctx) {
+        instrs.add(new BranchInstruction(B, exitLabel));
+        return null;
+    }
+
+    @Override
+    public Type visitContinue(@NotNull ContinueContext ctx) {
+        instrs.add(new BranchInstruction(B, loopLabel));
+        return null;
     }
 
     @Override

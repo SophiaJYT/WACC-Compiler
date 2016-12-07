@@ -22,6 +22,8 @@ FOR: 'for' ;
 DONE: 'done' ;
 BEGIN: 'begin' ;
 END: 'end' ;
+BREAK: 'break' ;
+CONTINUE: 'continue' ;
 
 //unary-operators
 NOT: '!' ;

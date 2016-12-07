@@ -1,0 +1,15 @@
+# Break out of a for loop without doing anything
+
+# Output:
+# #empty#
+
+# Program:
+
+begin
+  int i = 0 ;
+  while i != 1
+  do
+    break ;
+    println "should not get here"
+  done
+end

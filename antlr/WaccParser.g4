@@ -26,6 +26,8 @@ stat: SKIP                                                              #skip
 | FOR OPEN_PARENTHESES stat SEMI_COLON expr
   SEMI_COLON stat CLOSE_PARENTHESES DO stat DONE                        #forStat
 | WHILE expr DO stat DONE                                               #whileStat
+| BREAK                                                                 #break
+| CONTINUE                                                              #continue
 | BEGIN stat END                                                        #beginEnd
 | stat SEMI_COLON stat                                                  #statSequence;
 
