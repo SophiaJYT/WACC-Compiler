@@ -7,7 +7,7 @@
 
 begin
   do
-    print 1
+    println 1
   while false
   done
 end

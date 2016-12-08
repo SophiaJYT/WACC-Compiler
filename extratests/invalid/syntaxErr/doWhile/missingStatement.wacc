@@ -1,14 +1,13 @@
-# simple do while loop with a variable
+# missing Statement
 
 # Output:
-# 0
+# syntax error
 
 #Program 
 
 begin
   int i = 0 ;
   do
-    println i
   while i < 0
   done
 end

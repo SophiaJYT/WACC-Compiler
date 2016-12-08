@@ -1,8 +1,0 @@
-begin
-  int i = 0 ;
-  begin
-    do
-      println i
-    while i < 0 done
-  end
-end

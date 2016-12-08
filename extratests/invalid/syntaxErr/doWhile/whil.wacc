@@ -1,7 +1,7 @@
-# simple do while loop with a variable
+# While Typo
 
 # Output:
-# 0
+# syntax error
 
 #Program 
 
@@ -9,6 +9,6 @@ begin
   int i = 0 ;
   do
     println i
-  while i < 0
+  whil i < 0
   done
 end

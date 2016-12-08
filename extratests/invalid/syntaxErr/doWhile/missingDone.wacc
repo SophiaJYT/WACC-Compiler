@@ -1,7 +1,7 @@
-# simple do while loop with a variable
+# missing Done
 
 # Output:
-# 0
+# syntax error
 
 #Program 
 
@@ -10,5 +10,4 @@ begin
   do
     println i
   while i < 0
-  done
 end

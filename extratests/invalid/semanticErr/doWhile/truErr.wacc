@@ -1,0 +1,16 @@
+# true typo
+
+# Output:
+# #semantic_error#
+
+# Exit:
+# 200
+
+# Program:
+
+begin
+  do 
+    println 0
+  while tru
+  done
+end
