@@ -406,14 +406,29 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitForStat(@NotNull ForStatContext ctx) {
-        StatContext stat = ctx.stat(0);
-        if (!(stat instanceof VarInitContext || stat instanceof VarAssignContext)) {
-            listener.addSyntaxError(ctx, "First statement in for loop must be an initialising statement");
+        StatContext initialiser = ctx.stat(0);
+        if (initialiser == null) {
+            return null;
+        }
+        if (!(initialiser instanceof VarInitContext || initialiser instanceof VarAssignContext)) {
+            listener.addSyntaxError(ctx, "First statement in for loop brackets must be an initialising statement");
+            return null;
+        }
+        ExprContext cond = ctx.expr();
+        if (cond == null) {
+            return null;
+        }
+        StatContext incrementStat = ctx.stat(1);
+        if (incrementStat == null) {
+            return null;
+        }
+        if (!(incrementStat instanceof VarAssignContext)) {
+            listener.addSyntaxError(ctx, "Last statement in for loop brackets must be an assignment to an existing variable");
             return null;
         }
         curr = curr.startNewScope();
-        visit(stat);
-        visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)), stat);
+        visit(initialiser);
+        visitWhile(ctx, cond, initialiseStatList(ctx.stat(2), incrementStat), initialiser);
         curr = curr.endCurrentScope();
         return null;
     }
