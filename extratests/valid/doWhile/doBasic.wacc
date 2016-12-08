@@ -1,13 +1,13 @@
 # simple do while loop
 
 # Output:
-# #empty#
+# 1
 
 # Program:
 
 begin
   do
-    skip
+    print 1
   while false
   done
 end

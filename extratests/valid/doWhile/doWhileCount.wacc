@@ -18,9 +18,9 @@
 begin
   int i = 1 ;
   println "Can you count to 10?" ;
- do
-   println i ;
-   i = i + 1
+  do
+    println i ;
+    i = i + 1
   while i <= 10
   done
 end
