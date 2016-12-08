@@ -287,6 +287,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         Type type = curr.lookUpAll(var);
         if (type == null) {
             addSemanticError(ctx, "Variable '" + var + "' has not been declared");
+            type = visitExpr(ctx.expr());
         }
         if (!type.equalsType(NULL)) {
             addSemanticError(ctx, "Variable '" + var + "' must be a reference to an array or pair");
