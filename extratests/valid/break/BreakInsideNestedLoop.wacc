@@ -1,19 +1,25 @@
 # Test that break only exits the innermost loops
 
 # Output:
-# 223344556
+# 012341
+# 012342
 
 # Program:
 
 begin
-  int i = 3 ;
+  int i = 1 ;
   while true
   do
+    for (int j = 0; true; j = j + 1)
     do
-      print i - 1
-    while false done ;
-    print i ;
-    if i >= 6
+      if j >= 5
+      then
+        break
+      fi ;
+      print j
+    done ;
+    println i ;
+    if i >= 2
     then
       break
     fi ;

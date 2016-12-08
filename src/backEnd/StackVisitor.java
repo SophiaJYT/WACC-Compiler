@@ -71,6 +71,16 @@ public class StackVisitor extends WaccParserBaseVisitor<Integer> {
     }
 
     @Override
+    public Integer visitDoWhileStat(@NotNull DoWhileStatContext ctx) {
+        return null;
+    }
+
+    @Override
+    public Integer visitForStat(@NotNull ForStatContext ctx) {
+        return null;
+    }
+
+    @Override
     public Integer visitWhileStat(@NotNull WhileStatContext ctx) {
         return null;
     }

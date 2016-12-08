@@ -46,7 +46,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     private Data data = new Data();
     private ExtraMethodGenerator methodGenerator = new ExtraMethodGenerator(data);
 
-    private Label loopLabel, exitLabel;
+    private Label condLabel, exitLabel;
 
     private static int MAX_STACK_OFFSET = 1024, ARRAY_SIZE = 4, PAIR_SIZE = 4, NEWPAIR_SIZE = 8;
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
@@ -537,10 +537,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     }
 
     private Type visitWhile(ExprContext expr, List<StatContext> stats, boolean isDoWhile) {
-        Label condLabel = getNonFunctionLabel();
-        Label oldLoop = loopLabel;
+        Label loopLabel = getNonFunctionLabel();
+        Label oldCond = condLabel;
         Label oldExit = exitLabel;
-        loopLabel = getNonFunctionLabel();
+        condLabel = getNonFunctionLabel();
         exitLabel = getNonFunctionLabel();
         if (!isDoWhile) {
             instrs.add(new BranchInstruction(B, condLabel));
@@ -554,7 +554,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         instrs.add(new DataProcessingInstruction<>(CMP, freeRegisters.peek(), 1));
         instrs.add(new BranchInstruction(BEQ, loopLabel));
         instrs.add(exitLabel);
-        loopLabel = oldLoop;
+        condLabel = oldCond;
         exitLabel = oldExit;
         return null;
     }
@@ -569,10 +569,42 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         return visitWhile(ctx.expr(), initialiseStatList(ctx.stat()), true);
     }
 
+
+
     @Override
     public Type visitForStat(@NotNull ForStatContext ctx) {
+        // Create new scopes for current symbol table and stack space
+        curr = curr.startNewScope();
+        stackSpace = stackSpace.startNewScope();
+        arrayPositions = arrayPositions.startNewScope();
+
+        // Keep reference to position of the stack pointer
+        int oldStackPos = stackPos;
+
+        // Extend the stack with the size of the new scope
+        Integer scopeSize = stackVisitor.visit(ctx.stat(0));
+        if (scopeSize == null) {
+            scopeSize = 0;
+        }
+        if (stackPos != stackSize) {
+            stackPos = stackSize;
+        }
+        stackSize += scopeSize;
+        addSubStackInstrs(scopeSize);
+
         visit(ctx.stat(0));
-        return visitWhile(ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)), false);
+        visitWhile(ctx.expr(), initialiseStatList(ctx.stat(2), ctx.stat(1)), false);
+
+        // Reset the stack and symbol tables to the original states
+        addAddStackInstrs(scopeSize);
+        stackSize -= scopeSize;
+        stackPos = oldStackPos;
+
+        arrayPositions = arrayPositions.endCurrentScope();
+        stackSpace = stackSpace.endCurrentScope();
+        curr = curr.endCurrentScope();
+
+        return null;
     }
 
     @Override
@@ -583,7 +615,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitContinue(@NotNull ContinueContext ctx) {
-        instrs.add(new BranchInstruction(B, loopLabel));
+        instrs.add(new BranchInstruction(B, condLabel));
         return null;
     }
 
