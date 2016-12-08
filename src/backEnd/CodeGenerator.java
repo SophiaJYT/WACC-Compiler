@@ -46,7 +46,8 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
     private Data data = new Data();
     private ExtraMethodGenerator methodGenerator = new ExtraMethodGenerator(data);
 
-    private Label loopLabel, exitLabel;
+    private Stack<Label> loopLabels = new Stack<>();
+    private Stack<Label> exitLabels = new Stack<>();
 
     private static int MAX_STACK_OFFSET = 1024, ARRAY_SIZE = 4, PAIR_SIZE = 4, NEWPAIR_SIZE = 8;
     private static int CHAR_SIZE = 1, BOOL_SIZE = 1, INT_SIZE = 4, STRING_SIZE = 4;
@@ -538,8 +539,10 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     private Type visitWhile(ExprContext expr, List<StatContext> stats, boolean isDoWhile) {
         Label condLabel = getNonFunctionLabel();
-        loopLabel = getNonFunctionLabel();
-        exitLabel = getNonFunctionLabel();
+        Label loopLabel = getNonFunctionLabel();
+        Label exitLabel = getNonFunctionLabel();
+        loopLabels.push(loopLabel);
+        exitLabels.push(exitLabel);
         if (!isDoWhile) {
             instrs.add(new BranchInstruction(B, condLabel));
         }
@@ -573,12 +576,14 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     @Override
     public Type visitBreak(@NotNull BreakContext ctx) {
+        Label exitLabel = exitLabels.pop();
         instrs.add(new BranchInstruction(B, exitLabel));
         return null;
     }
 
     @Override
     public Type visitContinue(@NotNull ContinueContext ctx) {
+        Label loopLabel = loopLabels.pop();
         instrs.add(new BranchInstruction(B, loopLabel));
         return null;
     }

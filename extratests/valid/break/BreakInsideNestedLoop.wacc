@@ -1,0 +1,21 @@
+# Test that break only exits the innermost loops
+
+# Output:
+# 234
+
+# Program:
+
+begin
+  int i = 3 ;
+  while i < 6
+  do
+    do
+      print i - 1 ;
+      break
+    while true done ;
+    print i ;
+    i = i + 1 ;
+    break
+  done ;
+  print i
+end

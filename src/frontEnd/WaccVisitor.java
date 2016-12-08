@@ -381,6 +381,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             Type type = curr.lookUpAll(var);
             curr.add(var, type);
         }
+        boolean old = isInLoop;
         isInLoop = true;
         for (StatContext stat : body) {
             if (stat == null) {
@@ -388,7 +389,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
             }
             visitChildren(stat);
         }
-        isInLoop = false;
+        isInLoop = old;
         curr = curr.endCurrentScope();
         return null;
     }
