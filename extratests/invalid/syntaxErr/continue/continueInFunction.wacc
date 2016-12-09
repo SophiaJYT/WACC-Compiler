@@ -1,0 +1,18 @@
+# Check that continue inside function and outside loop throws a syntax error
+
+# Output:
+# #syntax_error#
+
+# Exit:
+# 100
+
+# Program:
+
+begin
+  int f() is
+    continue ;
+    return 1
+  end
+
+  int x = call f()
+end

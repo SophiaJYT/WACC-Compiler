@@ -10,6 +10,8 @@ begin
   bool c = false;	
   if b && c 
   then 
-    println "incorrect"
-  fi
+    println "incorrect" ;
+    exit 0
+  fi ;
+  println "correct"
 end

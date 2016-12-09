@@ -1,0 +1,12 @@
+# Check that break in main throws an error
+
+# Output:
+# #syntax_error#
+
+# Exit:
+# 100
+
+# Program:
+begin
+  break
+end

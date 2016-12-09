@@ -1,10 +1,12 @@
-#No statement
+# No statement inside for loop body
 
-#Output:
-#syntax error
+# Output:
+# #syntax_error#
 
-#Program:
+# Exit:
+# 100
 
+# Program:
 
 begin
   int i = 2 ;

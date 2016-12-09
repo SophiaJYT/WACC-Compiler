@@ -1,9 +1,12 @@
-# missing Done
+# Missing Done
 
 # Output:
-# syntax error
+# #syntax_error#
 
-#Program 
+# Exit:
+# 100
+
+# Program:
 
 begin
   int i = 0 ;

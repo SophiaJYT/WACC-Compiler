@@ -7,7 +7,7 @@ begin
       println i ;
       break
     fi ;
-    print i ;
+    println i ;
     i = i + 1
   done
 end
