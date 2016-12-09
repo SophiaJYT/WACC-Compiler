@@ -1,4 +1,0 @@
-#!/bin/sh
-
-echo "Running BackEnd TestSuite of WACC Compiler"
-backEndTestTools/./doComparisons.py || rm -f exe*
