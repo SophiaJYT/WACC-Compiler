@@ -1,12 +1,12 @@
 package frontEnd;
 
-import antlr.WaccParser;
 import antlr.WaccParser.*;
 import antlr.WaccParserBaseVisitor;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.misc.NotNull;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.RuleNode;
+import utils.SymbolTable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -71,6 +71,80 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         }
         return true;
     }
+
+    private void checkIfInLoop(@NotNull ParserRuleContext ctx) {
+        if (!isInLoop) {
+            String statement = ctx.getText();
+            statement = ("" + statement.charAt(0)).toUpperCase().concat(statement.substring(1));
+            listener.addSyntaxError(ctx, statement + " statement can only be used inside a loop statement");
+        }
+    }
+
+    private Type replaceNullReferences(Type expected, Type actual, ParserRuleContext ctx) {
+        if (expected == null) {
+            return ANY;
+        }
+        if (expected instanceof PairType) {
+            if (actual instanceof PairType) {
+                PairType expectedPair = (PairType) expected;
+                PairType actualPair = (PairType) actual;
+                Type lhs = replaceNullReferences(expectedPair.getLeft(), actualPair.getLeft(), ctx);
+                Type rhs = replaceNullReferences(expectedPair.getRight(), actualPair.getRight(), ctx);
+                return new PairType(lhs, rhs);
+            }
+            if (actual.equalsType(NULL)) {
+                return expected;
+            }
+            addSemanticError(ctx, "Type '" + expected + "' does not match type '" + actual + "'");
+        }
+        if (expected.equalsType(NULL)) {
+            if (expected.equalsType(actual)) {
+                return actual;
+            }
+            addSemanticError(ctx, "Type '" + expected + "' does not match type '" + actual + "'");
+        }
+        return expected;
+    }
+
+    private List<StatContext> initialiseStatList(StatContext... stats) {
+        return Arrays.asList(stats);
+    }
+
+    private Type visitWhile(ParserRuleContext ctx, ExprContext expr,
+                            List<StatContext> body, StatContext initialiser) {
+        Type actual = visitExpr(expr);
+        if (actual == null) {
+            return null;
+        }
+        if (!actual.equalsType(BOOL)) {
+            addSemanticError(ctx, "Invalid loop condition type (expected: '"
+                    + BOOL + "', actual: '" + actual + "'");
+        }
+        curr = curr.startNewScope();
+        if (initialiser != null) {
+            String var = "";
+            if (initialiser instanceof VarInitContext) {
+                var = ((VarInitContext) initialiser).ident().getText();
+            }
+            if (initialiser instanceof VarAssignContext) {
+                var = ((VarAssignContext) initialiser).assignLhs().getText();
+            }
+            Type type = curr.lookUpAll(var);
+            curr.add(var, type);
+        }
+        boolean old = isInLoop;
+        isInLoop = true;
+        for (StatContext stat : body) {
+            if (stat == null) {
+                return null;
+            }
+            visitChildren(stat);
+        }
+        isInLoop = old;
+        curr = curr.endCurrentScope();
+        return null;
+    }
+
 
     //------------------------------VISIT METHODS----------------------------//
 
@@ -211,31 +285,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         return null;
     }
 
-    private Type replaceNullReferences(Type expected, Type actual, ParserRuleContext ctx) {
-        if (expected == null) {
-            return ANY;
-        }
-        if (expected instanceof PairType) {
-            if (actual instanceof PairType) {
-                PairType expectedPair = (PairType) expected;
-                PairType actualPair = (PairType) actual;
-                Type lhs = replaceNullReferences(expectedPair.getLeft(), actualPair.getLeft(), ctx);
-                Type rhs = replaceNullReferences(expectedPair.getRight(), actualPair.getRight(), ctx);
-                return new PairType(lhs, rhs);
-            }
-            if (actual.equalsType(NULL)) {
-                return expected;
-            }
-            addSemanticError(ctx, "Type '" + expected + "' does not match type '" + actual + "'");
-        }
-        if (expected.equalsType(NULL)) {
-            if (expected.equalsType(actual)) {
-                return actual;
-            }
-            addSemanticError(ctx, "Type '" + expected + "' does not match type '" + actual + "'");
-        }
-        return expected;
-    }
 
     @Override
     public Type visitVarAssign(@NotNull VarAssignContext ctx) {
@@ -359,45 +408,6 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         return null;
     }
 
-    private List<StatContext> initialiseStatList(StatContext... stats) {
-        return Arrays.asList(stats);
-    }
-
-    private Type visitWhile(ParserRuleContext ctx, ExprContext expr,
-                            List<StatContext> body, StatContext initialiser) {
-        Type actual = visitExpr(expr);
-        if (actual == null) {
-            return null;
-        }
-        if (!actual.equalsType(BOOL)) {
-            addSemanticError(ctx, "Invalid loop condition type (expected: '"
-                    + BOOL + "', actual: '" + actual + "'");
-        }
-        curr = curr.startNewScope();
-        if (initialiser != null) {
-            String var = "";
-            if (initialiser instanceof VarInitContext) {
-                var = ((VarInitContext) initialiser).ident().getText();
-            }
-            if (initialiser instanceof VarAssignContext) {
-                var = ((VarAssignContext) initialiser).assignLhs().getText();
-            }
-            Type type = curr.lookUpAll(var);
-            curr.add(var, type);
-        }
-        boolean old = isInLoop;
-        isInLoop = true;
-        for (StatContext stat : body) {
-            if (stat == null) {
-                return null;
-            }
-            visitChildren(stat);
-        }
-        isInLoop = old;
-        curr = curr.endCurrentScope();
-        return null;
-    }
-
     @Override
     public Type visitWhileStat(@NotNull WhileStatContext ctx) {
         return visitWhile(ctx, ctx.expr(), initialiseStatList(ctx.stat()), null);
@@ -437,13 +447,7 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
         return null;
     }
 
-    private void checkIfInLoop(@NotNull ParserRuleContext ctx) {
-        if (!isInLoop) {
-            String statement = ctx.getText();
-            statement = ("" + statement.charAt(0)).toUpperCase().concat(statement.substring(1));
-            listener.addSyntaxError(ctx, statement + " statement can only be used inside a loop statement");
-        }
-    }
+
 
     @Override
     public Type visitBreak(@NotNull BreakContext ctx) {

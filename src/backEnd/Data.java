@@ -4,7 +4,7 @@ import backEnd.instructions.Directive;
 import backEnd.instructions.Instruction;
 import backEnd.instructions.Label;
 import frontEnd.ArrayType;
-import frontEnd.Identifier;
+import utils.Identifier;
 import frontEnd.PairType;
 import frontEnd.Type;
 

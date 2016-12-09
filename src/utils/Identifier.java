@@ -1,4 +1,6 @@
-package frontEnd;
+package utils;
+
+import frontEnd.Type;
 
 public class Identifier {
 

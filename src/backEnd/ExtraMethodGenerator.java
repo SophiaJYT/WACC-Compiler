@@ -1,7 +1,7 @@
 package backEnd;
 
 import backEnd.instructions.*;
-import frontEnd.Identifier;
+import utils.Identifier;
 import frontEnd.Type;
 
 import java.util.*;

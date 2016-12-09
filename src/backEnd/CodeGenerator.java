@@ -1,6 +1,5 @@
 package backEnd;
 
-
 import antlr.WaccParser.*;
 import antlr.WaccParserBaseVisitor;
 import backEnd.instructions.*;
@@ -9,6 +8,8 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.misc.NotNull;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.RuleNode;
+import utils.Identifier;
+import utils.SymbolTable;
 
 import java.util.*;
 
@@ -228,6 +229,64 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         return 0;
     }
 
+    private Type getArrayElemType(Type lhs) {
+        if (lhs instanceof ArrayType) {
+            lhs = ((ArrayType) lhs).getElement();
+        }
+        if (lhs.equalsType(STRING)) {
+            lhs = CHAR;
+        }
+        return lhs;
+    }
+
+    private void resetHeapPointer() {
+        freeRegisters.push(heapPtr);
+        heapPtr = null;
+    }
+
+    private void visitPrint(Type type) {
+        if (type instanceof ArrayType || type instanceof PairType) {
+            type = NULL;
+        }
+        Label printLabel = getPrintLabel(type);
+
+        instrs.add(new DataProcessingInstruction<>(MOV, r0, freeRegisters.peek()));
+
+        if (type.equalsType(CHAR)) {
+            instrs.add(new BranchInstruction(BL, new Label("putchar")));
+        } else {
+            instrs.add(new BranchInstruction(BL, printLabel));
+            methodGenerator.generatePrint(type, printLabel);
+        }
+    }
+
+    private List<StatContext> initialiseStatList(StatContext... stats) {
+        return Arrays.asList(stats);
+    }
+
+    private Type visitWhile(ExprContext expr, List<StatContext> stats, boolean isDoWhile) {
+        Label loopLabel = getNonFunctionLabel();
+        Label oldCond = condLabel;
+        Label oldExit = exitLabel;
+        condLabel = getNonFunctionLabel();
+        exitLabel = getNonFunctionLabel();
+        if (!isDoWhile) {
+            instrs.add(new BranchInstruction(B, condLabel));
+        }
+        instrs.add(loopLabel);
+        for (StatContext stat : stats) {
+            visitNewScope(stat);
+        }
+        instrs.add(condLabel);
+        visitExpr(expr);
+        instrs.add(new DataProcessingInstruction<>(CMP, freeRegisters.peek(), 1));
+        instrs.add(new BranchInstruction(BEQ, loopLabel));
+        instrs.add(exitLabel);
+        condLabel = oldCond;
+        exitLabel = oldExit;
+        return null;
+    }
+
     //------------------------------VISIT METHODS----------------------------//
 
     @Override
@@ -417,21 +476,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
     }
 
-    private Type getArrayElemType(Type lhs) {
-        if (lhs instanceof ArrayType) {
-            lhs = ((ArrayType) lhs).getElement();
-        }
-        if (lhs.equalsType(STRING)) {
-            lhs = CHAR;
-        }
-        return lhs;
-    }
-
-    private void resetHeapPointer() {
-        freeRegisters.push(heapPtr);
-        heapPtr = null;
-    }
-
     @Override
     public Type visitReadStat(@NotNull ReadStatContext ctx) {
         Type type = visitAssignLhs(ctx.assignLhs());
@@ -498,22 +542,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         return null;
     }
 
-    private void visitPrint(Type type) {
-        if (type instanceof ArrayType || type instanceof PairType) {
-            type = NULL;
-        }
-        Label printLabel = getPrintLabel(type);
-
-        instrs.add(new DataProcessingInstruction<>(MOV, r0, freeRegisters.peek()));
-
-        if (type.equalsType(CHAR)) {
-            instrs.add(new BranchInstruction(BL, new Label("putchar")));
-        } else {
-            instrs.add(new BranchInstruction(BL, printLabel));
-            methodGenerator.generatePrint(type, printLabel);
-        }
-    }
-
     @Override
     public Type visitIfStat(@NotNull IfStatContext ctx) {
         boolean hasElse = ctx.ELSE() != null;
@@ -529,33 +557,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
             visitNewScope(ctx.stat(1));
         }
         instrs.add(fiLabel);
-        return null;
-    }
-
-    private List<StatContext> initialiseStatList(StatContext... stats) {
-        return Arrays.asList(stats);
-    }
-
-    private Type visitWhile(ExprContext expr, List<StatContext> stats, boolean isDoWhile) {
-        Label loopLabel = getNonFunctionLabel();
-        Label oldCond = condLabel;
-        Label oldExit = exitLabel;
-        condLabel = getNonFunctionLabel();
-        exitLabel = getNonFunctionLabel();
-        if (!isDoWhile) {
-            instrs.add(new BranchInstruction(B, condLabel));
-        }
-        instrs.add(loopLabel);
-        for (StatContext stat : stats) {
-            visitNewScope(stat);
-        }
-        instrs.add(condLabel);
-        visitExpr(expr);
-        instrs.add(new DataProcessingInstruction<>(CMP, freeRegisters.peek(), 1));
-        instrs.add(new BranchInstruction(BEQ, loopLabel));
-        instrs.add(exitLabel);
-        condLabel = oldCond;
-        exitLabel = oldExit;
         return null;
     }
 
@@ -1113,7 +1114,7 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
 
         for (int count = 0; count < arrayLength; count++) {
             ExprContext e = ctx.expr(count);
-            Type exprType = visitExpr(e);
+            visitExpr(e);
             instrs.add(new SingleDataTransferInstruction<>(storeDataTransferType, expr,
                     new ShiftRegister(array.getType(), offset + count * exprSize, null)));
         }
