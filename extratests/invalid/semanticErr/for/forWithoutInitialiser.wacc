@@ -1,16 +1,16 @@
-# No statement inside for loop body
+# For loop without initialiser before assignment
 
 # Output:
-# #syntax_error#
+# #semantic_error#
 
 # Exit:
-# 100
+# 200
 
 # Program:
 
 begin
-  int i = 2 ;
   for (i = 0; i < 10; i = i + 1)
   do
+    println i
   done
 end

@@ -1,9 +1,12 @@
-#Spelling mistake
+# Fo typo
 
-#Output:
-# syntax error
+# Output:
+# #syntax_error#
 
-#Program:
+# Exit:
+# 100
+
+# Program:
 
 
 begin

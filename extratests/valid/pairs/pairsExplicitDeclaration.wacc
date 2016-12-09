@@ -1,0 +1,14 @@
+# Check that declaring explicit pair types behave correctly
+
+# Output:
+# 1
+
+# Program:
+
+begin
+  pair(int, int) p = newpair(1, 2) ;
+  pair(pair(int, int), int) q = newpair(p, 3) ;
+  pair(int, int) p_ = fst q ;
+  int val = fst p_ ;
+  println val
+end

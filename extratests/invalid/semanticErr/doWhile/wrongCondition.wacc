@@ -1,9 +1,12 @@
-# No boolean expr
+# Using an non-bool expression type in condition of do while loop
 
-#Output:
-#semantic error
+# Output:
+# #semantic_error#
 
-#Program:
+# Exit:
+# 200
+
+# Program:
 
 begin
   int i = 0 ;

@@ -1,4 +1,4 @@
-# Missing Statement
+# Check that continue in main throws an error
 
 # Output:
 # #syntax_error#
@@ -7,10 +7,6 @@
 # 100
 
 # Program:
-
 begin
-  int i = 0 ;
-  do
-  while i < 0
-  done
+  continue
 end

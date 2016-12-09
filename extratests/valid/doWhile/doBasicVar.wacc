@@ -1,9 +1,9 @@
-# simple do while loop with a variable
+# Simple do while loop with a variable
 
 # Output:
 # 0
 
-#Program 
+# Program:
 
 begin
   int i = 0 ;

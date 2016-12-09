@@ -212,6 +212,9 @@ public class WaccVisitor extends WaccParserBaseVisitor<Type> {
     }
 
     private Type replaceNullReferences(Type expected, Type actual, ParserRuleContext ctx) {
+        if (expected == null) {
+            return ANY;
+        }
         if (expected instanceof PairType) {
             if (actual instanceof PairType) {
                 PairType expectedPair = (PairType) expected;
