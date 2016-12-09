@@ -1,0 +1,105 @@
+#!/bin/bash
+
+# Test syntax errors
+syntaxError="100"
+semanticError="200"
+dump="randomoutput.txt"
+
+function resetCounters {
+  passed=0
+  failed=0
+}
+
+resetCounters
+echo "===== SYNTAX ERROR TESTS ====="
+for file in $(find ./extratests/invalid/syntaxErr -name "*.wacc")
+do
+  filename=$(basename "$file")
+  ./compile "$file" 2> "$dump"
+  exitcode="$?"
+  if [ $exitcode -eq $syntaxError ]
+  then
+    echo "$filename: PASSED"
+    passed=$((passed + 1))
+  else
+    echo "$filename: FAILED"
+    failed=$((failed + 1))
+  fi
+done
+rm -f "$dump"
+echo "===== OVERALL SYNTAX ERROR RESULTS ====="
+echo "PASSED: $passed"
+echo "FAILED: $failed"
+
+resetCounters
+echo "===== SEMANTIC ERROR TESTS ====="
+for file in $(find ./extratests/invalid/semanticErr -name "*.wacc")
+do
+  filename=$(basename "$file")
+  ./compile "$file" 2> "$dump"
+  exitcode="$?"
+  if [ $exitcode -eq $semanticError ]
+  then
+    echo "$filename: PASSED"
+    passed=$((passed + 1))
+  else
+    echo "$filename: FAILED"
+    failed=$((failed + 1))
+  fi
+done
+rm -f "$dump"
+echo "===== OVERALL SEMANTIC ERROR RESULTS ====="
+echo "PASSED: $passed"
+echo "FAILED: $failed"
+
+resetCounters
+echo "===== VALID TEST RESULTS ====="
+for file in $(find ./extratests/valid -name "*.wacc")
+do
+  filename=$(basename "$file")
+  ./compile "$file" 2> "$dump"
+  exitcode="$?"
+  if [ $exitcode -eq 0 ]
+  then
+    asmfile="${filename%.*}.s"
+    exe="${filename%.*}"
+    arm-linux-gnueabi-gcc -o "$exe" -mcpu=arm1176jzf-s -mtune=arm1176jzf-s "$asmfile" 2> "$dump"
+    armexitcode="$?"
+    if [ $armexitcode -ne 0 ]
+    then
+      echo "$filename failed to assemble"
+      failed=$((failed + 1))
+      rm -f "$asmfile"
+      continue
+    fi
+    output="out$exe"
+    qemu-arm -L /usr/arm-linux-gnueabi/ "$exe" > "$output" 2> "$dump"
+    qemuexitcode="$?"
+    if [ $qemuexitcode -ne 0 ]
+    then
+      echo "$filename failed in execution"
+      failed=$((failed + 1))
+      rm -f "$exe" "$asmfile" "$output"
+      continue
+    fi
+    expectedfile=$(find ./extratests/expectedValidOutput -name ""$exe"Output.txt")
+    diff "$expectedfile" "$output"
+    cmpresult="$?"
+    if [ $cmpresult -eq 0 ]
+    then
+      echo "$filename: PASSED"
+      passed=$((passed + 1))
+    else
+      echo "$filename: FAILED"
+      failed=$((failed + 1))
+    fi
+    rm -f "$exe" "$asmfile" "$output"
+  else
+    echo "$filename did not compile"
+    failed=$((failed + 1))
+  fi
+done
+rm -f "$dump"
+echo "===== OVERALL VALID TEST RESULTS ====="
+echo "PASSED: $passed"
+echo "FAILED: $failed"

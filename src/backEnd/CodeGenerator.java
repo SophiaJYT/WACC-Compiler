@@ -569,8 +569,6 @@ public class CodeGenerator extends WaccParserBaseVisitor<Type> {
         return visitWhile(ctx.expr(), initialiseStatList(ctx.stat()), true);
     }
 
-
-
     @Override
     public Type visitForStat(@NotNull ForStatContext ctx) {
         // Create new scopes for current symbol table and stack space
